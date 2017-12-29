@@ -9,8 +9,8 @@ import (
 	"github.com/giantswarm/micrologger"
 	kithttp "github.com/go-kit/kit/transport/http"
 
-	"github.com/giantswarm/endpoint-operator/server/endpoint"
-	"github.com/giantswarm/endpoint-operator/service"
+	"github.com/giantswarm/pv-cleaner-operator/server/endpoint"
+	"github.com/giantswarm/pv-cleaner-operator/service"
 )
 
 type Config struct {
