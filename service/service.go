@@ -6,9 +6,9 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/spf13/viper"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 
 	"github.com/giantswarm/microendpoint/service/version"
 	"github.com/giantswarm/microerror"
@@ -20,7 +20,6 @@ import (
 	"github.com/giantswarm/operatorkit/informer"
 
 	"github.com/giantswarm/pv-cleaner-operator/flag"
-	"github.com/giantswarm/pv-cleaner-operator/service/healthz"
 	pvresource "github.com/giantswarm/pv-cleaner-operator/service/resource/persistentvolume"
 )
 
@@ -54,7 +53,6 @@ func DefaultConfig() Config {
 
 type Service struct {
 	Framework *framework.Framework
-	Healthz   *healthz.Service
 	Version   *version.Service
 
 	bootOnce sync.Once
@@ -166,19 +164,6 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
-	var newHealthzService *healthz.Service
-	{
-		healthzConfig := healthz.DefaultConfig()
-
-		healthzConfig.K8sClient = newK8sClient
-		healthzConfig.Logger = config.Logger
-
-		newHealthzService, err = healthz.New(healthzConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
-
 	var newVersionService *version.Service
 	{
 		versionConfig := version.DefaultConfig()
@@ -196,7 +181,6 @@ func New(config Config) (*Service, error) {
 
 	newService := &Service{
 		Framework: operatorFramework,
-		Healthz:   newHealthzService,
 		Version:   newVersionService,
 
 		bootOnce: sync.Once{},

@@ -31,12 +31,6 @@ spec:
         volumeMounts:
         - name: pv-cleaner-operator-configmap
           mountPath: /var/run/pv-cleaner-operator/configmap/
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8000
-          initialDelaySeconds: 30
-          timeoutSeconds: 1
         resources:
           requests:
             cpu: 100m
