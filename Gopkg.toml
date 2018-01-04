@@ -38,3 +38,7 @@
 [[constraint]]
   name = "github.com/giantswarm/operatorkit"
   branch = "master"
+
+[[constraint]]
+  branch = "release-1.8"
+  name = "k8s.io/api"

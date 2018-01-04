@@ -50,7 +50,6 @@ func New(config Config) (microserver.Server, error) {
 	}
 
 	newServer.config.Endpoints = []microserver.Endpoint{
-		newEndpointCollection.Healthz,
 		newEndpointCollection.Version,
 	}
 

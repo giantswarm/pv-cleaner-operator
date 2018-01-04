@@ -1,36 +1,32 @@
 package service
 
 import (
+	"fmt"
 	"sync"
-	"time"
-
-	"github.com/cenkalti/backoff"
-	"github.com/spf13/viper"
-	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/microendpoint/service/version"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
-	"github.com/giantswarm/operatorkit/client/k8sclient"
-	"github.com/giantswarm/operatorkit/framework"
-	"github.com/giantswarm/operatorkit/framework/resource/metricsresource"
-	"github.com/giantswarm/operatorkit/framework/resource/retryresource"
-	"github.com/giantswarm/operatorkit/informer"
+	"github.com/giantswarm/operatorkit/client/k8srestconfig"
+	"github.com/spf13/viper"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/giantswarm/pv-cleaner-operator/flag"
-	pvresource "github.com/giantswarm/pv-cleaner-operator/service/resource/persistentvolume"
+	"github.com/giantswarm/pv-cleaner-operator/service/operator"
 )
 
-const (
-	ResourceRetries uint64 = 5
-)
-
+// Config represents the configuration used to create a new service.
 type Config struct {
-	Flag   *flag.Flag
+	// Dependencies.
+
 	Logger micrologger.Logger
-	Viper  *viper.Viper
+
+	// Settings.
+
+	Flag  *flag.Flag
+	Viper *viper.Viper
 
 	Description string
 	GitCommit   string
@@ -38,11 +34,16 @@ type Config struct {
 	Source      string
 }
 
+// DefaultConfig provides a default configuration to create a new service by
+// best effort.
 func DefaultConfig() Config {
 	return Config{
-		Flag:   nil,
+		// Dependencies.
 		Logger: nil,
-		Viper:  nil,
+
+		// Settings.
+		Flag:  nil,
+		Viper: nil,
 
 		Description: "",
 		GitCommit:   "",
@@ -51,14 +52,15 @@ func DefaultConfig() Config {
 	}
 }
 
-type Service struct {
-	Framework *framework.Framework
-	Version   *version.Service
-
-	bootOnce sync.Once
-}
-
+// New creates a new configured service object.
 func New(config Config) (*Service, error) {
+	// Dependencies.
+	if config.Logger == nil {
+		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
+	}
+	config.Logger.Log("debug", fmt.Sprintf("creating pv-cleaner-operator gitCommit:%s", config.GitCommit))
+
+	// Settings.
 	if config.Flag == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Flag must not be empty")
 	}
@@ -68,129 +70,78 @@ func New(config Config) (*Service, error) {
 
 	var err error
 
-	var newK8sClient kubernetes.Interface
+	var restConfig *rest.Config
 	{
-		k8sConfig := k8sclient.DefaultConfig()
+		c := k8srestconfig.DefaultConfig()
 
-		k8sConfig.Logger = config.Logger
-
-		k8sConfig.Address = config.Viper.GetString(config.Flag.Service.Kubernetes.Address)
-		k8sConfig.InCluster = config.Viper.GetBool(config.Flag.Service.Kubernetes.InCluster)
-		k8sConfig.TLS.CAFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CAFile)
-		k8sConfig.TLS.CrtFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CrtFile)
-		k8sConfig.TLS.KeyFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.KeyFile)
-
-		newK8sClient, err = k8sclient.New(k8sConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
-
-	var newPersistentVolumeResource framework.Resource
-	{
-		pvConfig := pvresource.DefaultConfig()
-
-		pvConfig.K8sClient = newK8sClient
-		pvConfig.Logger = config.Logger
-
-		newPvResource, err = pvresource.New(pvConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
-
-	var resources []framework.Resource
-	{
-		resources = []framework.Resource{
-			newPersistentVolumeResource,
-		}
-
-		retryWrapConfig := retryresource.DefaultWrapConfig()
-		retryWrapConfig.BackOffFactory = func() backoff.BackOff {
-			return backoff.WithMaxTries(backoff.NewExponentialBackOff(), ResourceRetries)
-		}
-		retryWrapConfig.Logger = config.Logger
-		resources, err = retryresource.Wrap(resources, retryWrapConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-
-		metricsWrapConfig := metricsresource.DefaultWrapConfig()
-		metricsWrapConfig.Name = config.Name
-		resources, err = metricsresource.Wrap(resources, metricsWrapConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
-
-	var newWatcherFactory informer.WatcherFactory
-	{
-		zeroObjectFactory := &informer.ZeroObjectFactoryFuncs{
-			NewObjectFunc: func() runtime.Object {
-				var pv apiv1.PersistentVolume
-				return &pv
-			},
-			NewObjectListFunc: func() runtime.Object {
-				var pvList apiv1.PersistentVolumeList
-				return &pvList
-			},
-		}
-		newWatcherFactory = informer.NewWatcherFactory(newK8sClient.Discovery().RESTClient(), "/api/v1/watch/persistentvolumes/", zeroObjectFactory)
-	}
-
-	var newInformer *informer.Informer
-	{
-		informerConfig := informer.DefaultConfig()
-		informerConfig.WatcherFactory = newWatcherFactory
-		informerConfig.ResyncPeriod = time.Minute * 30
-
-		newInformer, err = informer.New(informerConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
-
-	var operatorFramework *framework.Framework
-	{
-		c := framework.DefaultConfig()
-
-		c.Informer = newInformer
 		c.Logger = config.Logger
-		c.ResourceRouter = framework.DefaultResourceRouter(resources)
 
-		operatorFramework, err = framework.New(c)
+		c.Address = config.Viper.GetString(config.Flag.Service.Kubernetes.Address)
+		c.InCluster = config.Viper.GetBool(config.Flag.Service.Kubernetes.InCluster)
+		c.TLS.CAFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CAFile)
+		c.TLS.CrtFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CrtFile)
+		c.TLS.KeyFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.KeyFile)
+
+		restConfig, err = k8srestconfig.New(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
 	}
 
-	var newVersionService *version.Service
+	k8sClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	var operatorService *operator.Service
+	{
+		operatorConfig := operator.DefaultConfig()
+		operatorConfig.Logger = config.Logger
+		operatorConfig.K8sClient = k8sClient
+
+		operatorService, err = operator.New(operatorConfig)
+		if err != nil {
+			return nil, microerror.Maskf(err, "operator.New")
+		}
+	}
+
+	var versionService *version.Service
 	{
 		versionConfig := version.DefaultConfig()
-
 		versionConfig.Description = config.Description
 		versionConfig.GitCommit = config.GitCommit
 		versionConfig.Name = config.Name
 		versionConfig.Source = config.Source
 
-		newVersionService, err = version.New(versionConfig)
+		versionService, err = version.New(versionConfig)
 		if err != nil {
-			return nil, microerror.Mask(err)
+			return nil, microerror.Maskf(err, "version.New")
 		}
 	}
 
 	newService := &Service{
-		Framework: operatorFramework,
-		Version:   newVersionService,
+		// Dependencies.
+		Operator: operatorService,
+		Version:  versionService,
 
+		// Internals
 		bootOnce: sync.Once{},
 	}
 
 	return newService, nil
 }
 
+type Service struct {
+	// Dependencies.
+	Operator *operator.Service
+	Version  *version.Service
+
+	// Internals.
+	bootOnce sync.Once
+}
+
 func (s *Service) Boot() {
 	s.bootOnce.Do(func() {
-		s.Framework.Boot()
+		s.Operator.Boot()
 	})
 }

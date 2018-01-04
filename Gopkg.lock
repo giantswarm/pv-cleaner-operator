@@ -94,7 +94,7 @@
 [[projects]]
   branch = "master"
   name = "github.com/giantswarm/operatorkit"
-  packages = ["client/k8sclient","client/k8scrdclient","framework","framework/context/reconciliationcanceledcontext","framework/context/resourcecanceledcontext","framework/context/updateallowedcontext","framework/context/updatenecessarycontext","framework/resource/metricsresource","framework/resource/retryresource","informer"]
+  packages = ["client/k8scrdclient","client/k8srestconfig","framework","framework/context/reconciliationcanceledcontext","framework/context/resourcecanceledcontext","framework/context/updateallowedcontext","framework/context/updatenecessarycontext","informer"]
   revision = "1a89b8a7c078dc4e3d98c7e44c37cf726082ac17"
 
 [[projects]]
@@ -392,10 +392,10 @@
   revision = "287cf08546ab5e7e37d55a84f7ed3fd1db036de5"
 
 [[projects]]
-  branch = "master"
+  branch = "release-1.8"
   name = "k8s.io/api"
   packages = ["admissionregistration/v1alpha1","apps/v1beta1","apps/v1beta2","authentication/v1","authentication/v1beta1","authorization/v1","authorization/v1beta1","autoscaling/v1","autoscaling/v2beta1","batch/v1","batch/v1beta1","batch/v2alpha1","certificates/v1beta1","core/v1","extensions/v1beta1","networking/v1","policy/v1beta1","rbac/v1","rbac/v1alpha1","rbac/v1beta1","scheduling/v1alpha1","settings/v1alpha1","storage/v1","storage/v1beta1"]
-  revision = "d19b0bad6fd13374f9b4568c3fdfe5af633ecbff"
+  revision = "9b9dca205a15b6ce9ef10091f05d60a13fdcf418"
 
 [[projects]]
   branch = "release-1.8"
@@ -424,6 +424,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bb62d016de8304d69290516dfc3a787bb6bbd635ad93c5a13a09f2c36134bec3"
+  inputs-digest = "95443e3d49a489fd472362ea32fca9715904595ee5e13aca203ad25578bb45f4"
   solver-name = "gps-cdcl"
   solver-version = 1
