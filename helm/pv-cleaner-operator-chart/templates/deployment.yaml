@@ -1,0 +1,42 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pv-cleaner-operator
+  namespace: giantswarm
+  labels:
+    app: pv-cleaner-operator
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: pv-cleaner-operator
+    spec:
+      volumes:
+      - name: pv-cleaner-operator-configmap
+        configMap:
+          name: pv-cleaner-operator-configmap
+          items:
+          - key: config.yml
+            path: config.yml
+      containers:
+      - name: pv-cleaner-operator
+        image: quay.io/giantswarm/pv-cleaner-operator:[[ .SHA ]]
+        args:
+        - daemon
+        - --config.dirs=/var/run/pv-cleaner-operator/configmap/
+        - --config.files=config
+        volumeMounts:
+        - name: pv-cleaner-operator-configmap
+          mountPath: /var/run/pv-cleaner-operator/configmap/
+        resources:
+          requests:
+            cpu: 100m
+            memory: 150Mi
+          limits:
+            cpu: 100m
+            memory: 150Mi
+      imagePullSecrets:
+      - name: pv-cleaner-operator-pull-secret
