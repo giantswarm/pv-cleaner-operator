@@ -6,21 +6,27 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/operatorkit/framework"
 	"github.com/giantswarm/operatorkit/informer"
-	"k8s.io/client-go/kubernetes"
+	"github.com/giantswarm/pv-cleaner-operator/service/resource/persistentvolume"
 )
 
 const ResyncPeriod = 1 * time.Minute
 
 func newFramework(config Config) (*framework.Framework, error) {
 
-	var k8sClient kubernetes.Interface
-	var err error
+	c := persistentvolume.DefaultConfig()
+	c.K8sClient = config.K8sClient
+	c.Logger = config.Logger
+
+	var persistentVolumeResource, err = persistentvolume.New(c)
+	if err != nil {
+		return nil, microerror.Maskf(err, "persistentvolume.New")
+	}
 
 	var newInformer *informer.Informer
 	{
 		c := informer.DefaultConfig()
 		c.ResyncPeriod = ResyncPeriod
-		c.Watcher = k8sClient.Core().PersistentVolumes()
+		c.Watcher = config.K8sClient.Core().PersistentVolumes()
 
 		newInformer, err = informer.New(c)
 		if err != nil {
@@ -30,7 +36,9 @@ func newFramework(config Config) (*framework.Framework, error) {
 
 	var f *framework.Framework
 	{
-		resources := []framework.Resource{}
+		resources := []framework.Resource{
+			persistentVolumeResource,
+		}
 
 		c := framework.DefaultConfig()
 
