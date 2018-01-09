@@ -8,9 +8,9 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/client/k8srestconfig"
+	"github.com/giantswarm/pv-cleaner-operator/service/operator"
 	"github.com/spf13/viper"
 
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -93,9 +93,16 @@ func New(config Config) (*Service, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	k8sExtClient, err := apiextensionsclient.NewForConfig(restConfig)
-	if err != nil {
-		return nil, microerror.Mask(err)
+	var operatorService *operator.Service
+	{
+		operatorConfig := operator.DefaultConfig()
+		operatorConfig.Logger = config.Logger
+		operatorConfig.K8sClient = k8sClient
+
+		operatorService, err = operator.New(operatorConfig)
+		if err != nil {
+			return nil, microerror.Maskf(err, "operator.New")
+		}
 	}
 
 	var versionService *version.Service
@@ -114,7 +121,8 @@ func New(config Config) (*Service, error) {
 
 	newService := &Service{
 		// Dependencies.
-		Version: versionService,
+		Operator: operatorService,
+		Version:  versionService,
 
 		// Internals
 		bootOnce: sync.Once{},
@@ -125,7 +133,8 @@ func New(config Config) (*Service, error) {
 
 type Service struct {
 	// Dependencies.
-	Version *version.Service
+	Operator *operator.Service
+	Version  *version.Service
 
 	// Internals.
 	bootOnce sync.Once
