@@ -11,8 +11,8 @@ import (
 
 const (
 	name                   = "persistentvolume"
-	cleanupAnnotation      = "persistentvolume.giantswarm.io/cleanup"
-	recycleStateAnnotation = "persistentvolume.giantswarm.io/recyclestate"
+	cleanupAnnotation      = "volume.kubernetes.io/cleanup-on-release"
+	recycleStateAnnotation = "pv-cleaner-operator.giantswarm.io/volume-recycle-state"
 )
 
 // RecycleStateAnnotation values
