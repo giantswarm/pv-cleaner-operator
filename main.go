@@ -6,7 +6,10 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/microkit/command"
 	microserver "github.com/giantswarm/microkit/server"
+	"github.com/giantswarm/microkit/transaction"
 	"github.com/giantswarm/micrologger"
+	"github.com/giantswarm/microstorage"
+	"github.com/giantswarm/microstorage/memory"
 	"github.com/spf13/viper"
 
 	"github.com/giantswarm/pv-cleaner-operator/flag"
@@ -25,6 +28,12 @@ var (
 	name        string     = "pv-cleaner-operator"
 	source      string     = "https://github.com/giantswarm/pv-cleaner-operator"
 )
+
+func panicOnErr(err error) {
+	if err != nil {
+		panic(fmt.Sprintf("%#v", err))
+	}
+}
 
 func main() {
 	err := mainWithError()
@@ -70,12 +79,32 @@ func mainWithError() error {
 			go newService.Boot()
 		}
 
+		var newStorage microstorage.Storage
+		{
+			storageConfig := memory.DefaultConfig()
+
+			newStorage, err = memory.New(storageConfig)
+			panicOnErr(err)
+		}
+
+		var newTransactionResponder transaction.Responder
+		{
+			transactionResponderConfig := transaction.DefaultResponderConfig()
+
+			transactionResponderConfig.Logger = newLogger
+			transactionResponderConfig.Storage = newStorage
+
+			newTransactionResponder, err = transaction.NewResponder(transactionResponderConfig)
+			panicOnErr(err)
+		}
+
 		// Create a new custom server which bundles our endpoints.
 		var newServer microserver.Server
 		{
 			serverConfig := server.DefaultConfig()
 
 			serverConfig.MicroServerConfig.Logger = newLogger
+			serverConfig.MicroServerConfig.TransactionResponder = newTransactionResponder
 			serverConfig.MicroServerConfig.ServiceName = name
 			serverConfig.MicroServerConfig.Viper = v
 			serverConfig.Service = newService
