@@ -52,15 +52,15 @@ func (r *Resource) newDeleteChange(ctx context.Context, obj, currentState, desir
 		return nil, microerror.Mask(err)
 	}
 
-	reconcile := isScheduledForCleanup(deletedVolume, cleanupAnnotation)
-
-	r.logger.LogCtx(ctx, "persistentvolume", deletedVolume.Name, cleanupAnnotation, reconcile)
+	r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "retrieving cleanup annotation", cleanupAnnotation)
+	reconcile := isScheduledForCleanup(updatedVolume, cleanupAnnotation)
+	r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "reconcile persistent volume", reconcile)
 	if !reconcile {
 		return nil, nil
 	}
 
 	if reflect.DeepEqual(currentState, desiredState) {
-		r.logger.LogCtx(ctx, "persistentvolume", deletedVolume.Name, "recycled", "true")
+		r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "volume reconciled to desired state", "true")
 		return nil, nil
 	}
 
