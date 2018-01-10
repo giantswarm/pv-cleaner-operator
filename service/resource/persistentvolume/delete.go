@@ -8,7 +8,7 @@ import (
 	"github.com/giantswarm/operatorkit/framework"
 )
 
-// NewDeletePatch returns patch to apply on deleted persistent volume
+// NewDeletePatch returns patch to apply on deleted persistent volume.
 func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
 
 	deleteState, err := r.newUpdateChange(ctx, obj, currentState, desiredState)
@@ -22,7 +22,7 @@ func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desire
 	return patch, nil
 }
 
-// ApplyDeleteChange represents delete patch logic
+// ApplyDeleteChange represents delete patch logic.
 func (r *Resource) ApplyDeleteChange(ctx context.Context, obj, deleteState interface{}) error {
 	rpv, err := toRecyclePV(deleteState)
 	if err != nil {
@@ -45,7 +45,7 @@ func (r *Resource) ApplyDeleteChange(ctx context.Context, obj, deleteState inter
 }
 
 // newDeleteChange checks wherether persistent volume should be reconciled
-// on delete event
+// on delete event.
 func (r *Resource) newDeleteChange(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, error) {
 	deletedVolume, err := toPV(obj)
 	if err != nil {

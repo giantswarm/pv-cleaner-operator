@@ -6,7 +6,7 @@ import (
 	"github.com/giantswarm/microerror"
 )
 
-// GetCurrentState returns current state of the recycled persistent volume
+// GetCurrentState returns current state of the recycled persistent volume.
 func (r *Resource) GetCurrentState(ctx context.Context, obj interface{}) (interface{}, error) {
 
 	rpv, err := pvToRecyclePV(obj)
@@ -17,7 +17,7 @@ func (r *Resource) GetCurrentState(ctx context.Context, obj interface{}) (interf
 	return rpv, nil
 }
 
-// GetDesiredState returns desired state of the recycled persistent volume
+// GetDesiredState returns desired state of the recycled persistent volume.
 func (r *Resource) GetDesiredState(ctx context.Context, obj interface{}) (interface{}, error) {
 
 	pv, err := pvToRecyclePV(obj)
