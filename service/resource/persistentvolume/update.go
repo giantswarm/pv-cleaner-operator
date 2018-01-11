@@ -34,12 +34,15 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		return nil
 	}
 
-	_, err = toPV(obj)
+	pv, err := toPV(obj)
 	if err != nil {
 		return microerror.Mask(err)
 	}
 
-	// update state logic
+	err = r.reconcilePersistentVolume(pv, rpv)
+	if err != nil {
+		return microerror.Mask(err)
+	}
 
 	return nil
 }

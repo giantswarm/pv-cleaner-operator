@@ -133,3 +133,33 @@ func pvToRecyclePV(v interface{}) (*RecyclePersistentVolume, error) {
 
 	return rpv, nil
 }
+
+func newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycleAnnotation string) (*apiv1.PersistentVolume, error) {
+
+	updatedpv := pv.DeepCopy()
+	updatedpv.ObjectMeta.Annotations[recycleStateAnnotation] = recycleAnnotation
+	
+	return updatedpv, nil
+}
+
+func (r *Resource) reconcilePersistentVolume(pv *apiv1.PersistentVolume, rpv *RecyclePersistentVolume) error {
+	
+	switch combinedState := string(rpv.State) + rpv.RecycleState; combinedState {
+	case "ReleasedRecycled":
+		r.logger.Log("persistentvolume", pv.Name, "action", "set Released recycle annotation")
+		pv, err := newRecycleStateAnnotation(pv, released)
+		_, err = r.k8sClient.Core().PersistentVolumes().Update(pv)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+		fallthrough
+	case "ReleasedReleased":
+		// make it AvailableCleaning
+		fallthrough
+	case "AvailableCleaning", "BoundCleaning", "ReleasedCleaning":
+		// make it AvailableRecycled
+		
+	}
+
+	return nil
+}
