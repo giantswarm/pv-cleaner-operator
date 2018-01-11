@@ -7,6 +7,7 @@ import (
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/framework"
 	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -134,32 +135,25 @@ func pvToRecyclePV(v interface{}) (*RecyclePersistentVolume, error) {
 	return rpv, nil
 }
 
-func newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycleAnnotation string) (*apiv1.PersistentVolume, error) {
+func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycleAnnotation string) (*apiv1.PersistentVolume, error) {
 
-	updatedpv := pv.DeepCopy()
+	updatedpv := &apiv1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        pv.Name,
+			Annotations: pv.Annotations,
+			Labels: pv.Labels,
+		},
+		Spec: apiv1.PersistentVolumeSpec{
+			Capacity:                      pv.Spec.Capacity,
+			StorageClassName:              pv.Spec.StorageClassName,
+			AccessModes:                   pv.Spec.AccessModes,
+			PersistentVolumeReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
+			PersistentVolumeSource:        pv.Spec.PersistentVolumeSource,
+		},
+	}
+
+	r.logger.Log("persistentvolume", pv.Name, "set new recycle annotation", recycleAnnotation)
 	updatedpv.ObjectMeta.Annotations[recycleStateAnnotation] = recycleAnnotation
 	
 	return updatedpv, nil
-}
-
-func (r *Resource) reconcilePersistentVolume(pv *apiv1.PersistentVolume, rpv *RecyclePersistentVolume) error {
-	
-	switch combinedState := string(rpv.State) + rpv.RecycleState; combinedState {
-	case "ReleasedRecycled":
-		r.logger.Log("persistentvolume", pv.Name, "action", "set Released recycle annotation")
-		pv, err := newRecycleStateAnnotation(pv, released)
-		_, err = r.k8sClient.Core().PersistentVolumes().Update(pv)
-		if err != nil {
-			return microerror.Mask(err)
-		}
-		fallthrough
-	case "ReleasedReleased":
-		// make it AvailableCleaning
-		fallthrough
-	case "AvailableCleaning", "BoundCleaning", "ReleasedCleaning":
-		// make it AvailableRecycled
-		
-	}
-
-	return nil
 }

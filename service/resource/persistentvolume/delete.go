@@ -2,7 +2,6 @@ package persistentvolume
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/operatorkit/framework"
@@ -11,13 +10,13 @@ import (
 // NewDeletePatch returns patch to apply on deleted persistent volume.
 func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
 
-	deleteState, err := r.newUpdateChange(ctx, obj, currentState, desiredState)
+	deleteState, err := r.newDeleteChange(ctx, obj, currentState, desiredState)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
 	patch := framework.NewPatch()
-	patch.SetUpdateChange(deleteState)
+	patch.SetDeleteChange(deleteState)
 
 	return patch, nil
 }
@@ -34,12 +33,29 @@ func (r *Resource) ApplyDeleteChange(ctx context.Context, obj, deleteState inter
 		return nil
 	}
 
-	_, err = toPV(obj)
+	oldpv, err := toPV(obj)
 	if err != nil {
 		return microerror.Mask(err)
 	}
 
-	// delete state logic
+	var recycleStateAnnotationValue string
+	switch rpv.RecycleState {
+	case "Released":
+		recycleStateAnnotationValue = cleaning
+	case "Cleaning":
+		recycleStateAnnotationValue = recycled
+	}
+
+	newpv, err := r.newRecycleStateAnnotation(oldpv, recycleStateAnnotationValue)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+
+	r.logger.Log("pv", newpv.Name, "create volume with new recycle annotation", recycleStateAnnotationValue)
+	_, err = r.k8sClient.Core().PersistentVolumes().Create(newpv)
+	if err != nil {
+		return microerror.Mask(err)
+	}
 
 	return nil
 }
@@ -52,15 +68,10 @@ func (r *Resource) newDeleteChange(ctx context.Context, obj, currentState, desir
 		return nil, microerror.Mask(err)
 	}
 
-	r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "retrieving cleanup annotation", cleanupAnnotation)
-	reconcile := isScheduledForCleanup(updatedVolume, cleanupAnnotation)
-	r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "reconcile persistent volume", reconcile)
+	r.logger.LogCtx(ctx, "persistentvolume", deletedVolume.Name, "retrieving cleanup annotation of deleted volume", cleanupAnnotation)
+	reconcile := isScheduledForCleanup(deletedVolume, cleanupAnnotation)
+	r.logger.LogCtx(ctx, "persistentvolume", deletedVolume.Name, "reconcile deleted persistent volume", reconcile)
 	if !reconcile {
-		return nil, nil
-	}
-
-	if reflect.DeepEqual(currentState, desiredState) {
-		r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "volume reconciled to desired state", "true")
 		return nil, nil
 	}
 

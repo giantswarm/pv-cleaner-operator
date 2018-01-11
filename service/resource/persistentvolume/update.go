@@ -3,12 +3,14 @@ package persistentvolume
 import (
 	"context"
 	"reflect"
+	"fmt"
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/operatorkit/framework"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NewUpdatePatch returns patch to apply on deleted persistent volume.
+// NewUpdatePatch returns patch to apply on updated persistent volume.
 func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
 
 	updateState, err := r.newUpdateChange(ctx, obj, currentState, desiredState)
@@ -22,7 +24,7 @@ func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desire
 	return patch, nil
 }
 
-// ApplyUpdateChange represents delete patch logic.
+// ApplyUpdateChange represents update patch logic.
 func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState interface{}) error {
 	rpv, err := toRecyclePV(updateState)
 	if err != nil {
@@ -39,9 +41,23 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		return microerror.Mask(err)
 	}
 
-	err = r.reconcilePersistentVolume(pv, rpv)
-	if err != nil {
-		return microerror.Mask(err)
+	fmt.Printf("\n\n Processing %s %s \n\n", string(rpv.State), rpv.RecycleState)
+
+	switch combinedState := string(rpv.State) + rpv.RecycleState; combinedState {
+	case "ReleasedRecycled":
+		pv, err := r.newRecycleStateAnnotation(pv, released)
+		_, err = r.k8sClient.Core().PersistentVolumes().Update(pv)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+	case "ReleasedReleased":
+		err = r.k8sClient.Core().PersistentVolumes().Delete(pv.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return microerror.Mask(err)
+		}
+	case "AvailableCleaning", "BoundCleaning", "ReleasedCleaning":
+		// make it AvailableRecycled
+
 	}
 
 	return nil
