@@ -1,8 +1,7 @@
 package persistentvolume
 
 import (
-    "fmt"
-  
+	"fmt"
 	"k8s.io/client-go/kubernetes"
 	
 	"github.com/giantswarm/microerror"
@@ -189,9 +188,6 @@ func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 // which runs busybox container, mounts claim from the function parameter
 // and run shell command to cleanup mount path.
 func newCleanupJob(pvc *apiv1.PersistentVolumeClaim) *batchv1.Job {
-
-    fmt.Printf("\n\n cleanup job %s \n\n", pvc.Name)
-
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("pv-cleaner-job-%s", pvc.Name),

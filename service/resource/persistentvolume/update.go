@@ -1,10 +1,9 @@
 package persistentvolume
 
 import (
+	"fmt"
 	"context"
 	"reflect"
-	"fmt"
-
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/operatorkit/framework"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,8 +39,6 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 	if err != nil {
 		return microerror.Mask(err)
 	}
-
-	fmt.Printf("\n\n Processing %s %s \n\n", string(rpv.State), rpv.RecycleState)
 
 	switch combinedState := string(rpv.State) + rpv.RecycleState; combinedState {
 	case "ReleasedRecycled":
@@ -89,8 +86,6 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		if err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
 			return microerror.Maskf(err, "failed to delete claim for persistent volume", pv.Name)
 		}
-
-		return nil
 	case "ReleasedCleaning":
 		err = r.k8sClient.Core().PersistentVolumes().Delete(pv.Name, &metav1.DeleteOptions{})
 		if err != nil {
