@@ -24,3 +24,17 @@ var missingAnnotationError = microerror.New("missing annotation")
 func IsMissingAnnotationError(err error) bool {
 	return microerror.Cause(err) == missingAnnotationError
 }
+
+var waitResourceError = microerror.New("waitResource")
+
+// IsWaitTimeout asserts invalidConfigError.
+func IsWaitReosurce(err error) bool {
+	return microerror.Cause(err) == waitResourceError
+}
+
+var waitTimeoutError = microerror.New("waitTimeout")
+
+// IsWaitTimeout asserts invalidConfigError.
+func IsWaitTimeout(err error) bool {
+	return microerror.Cause(err) == waitTimeoutError
+}

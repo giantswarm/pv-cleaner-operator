@@ -55,11 +55,51 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		if err != nil {
 			return microerror.Mask(err)
 		}
-	case "AvailableCleaning", "BoundCleaning", "ReleasedCleaning":
-		// make it AvailableRecycled
+	case "AvailableCleaning":
+		pvcdef := newPvc(pv)
+		pvc, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Create(pvcdef)
+		if err != nil {
+			return microerror.Maskf(err, "failed to create persistent volume claim", pvc.Name)
+		}
+	case "BoundCleaning":
+		pvcName := fmt.Sprintf("pv-cleaner-claim-%s", pv.Name)
+		pvc, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Get(pvcName, metav1.GetOptions{})
+		if err != nil {
+			return microerror.Maskf(err, "failed to get persistent volume claim", pvcName)
+		}
+	
+		cleanupJobDef := newCleanupJob(pvc)
+		cleanupJob, err := r.k8sClient.Batch().Jobs("kube-system").Create(cleanupJobDef)
+		if err != nil {
+			cleanupJob, err = r.k8sClient.Batch().Jobs("kube-system").Get(cleanupJobDef.GetName(), metav1.GetOptions{})
+			if err != nil {
+				return microerror.Maskf(err, "Failed to create pvc", pvc.GetName())
+			}
+		}
 
+		if cleanupJob.Status.Succeeded != 1 {
+			r.logger.LogCtx(ctx, "job", cleanupJob.Name, "waiting for job to complete cleanup of pv", pv.Name)
+			return nil
+		}	
+
+		if err := r.k8sClient.Batch().Jobs("kube-system").Delete(cleanupJob.Name, &metav1.DeleteOptions{}); err != nil {
+			return microerror.Maskf(err, "failed to delete cleanup job", cleanupJob.Name)
+		}
+	
+		if err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
+			return microerror.Maskf(err, "failed to delete claim for persistent volume", pv.Name)
+		}
+
+		return nil
+	case "ReleasedCleaning":
+		err = r.k8sClient.Core().PersistentVolumes().Delete(pv.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return microerror.Mask(err)
+		}
+	default: 
+	return nil
 	}
-
+	
 	return nil
 }
 
