@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/operatorkit/framework"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -75,10 +76,10 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 	
 		cleanupJobDef := newCleanupJob(pvc)
 		cleanupJob, err := r.k8sClient.Batch().Jobs("kube-system").Create(cleanupJobDef)
-		if err != nil {
-			cleanupJob, err = r.k8sClient.Batch().Jobs("kube-system").Get(cleanupJobDef.GetName(), metav1.GetOptions{})
+		if errors.IsAlreadyExists(err) {
+			cleanupJob, err = r.k8sClient.Batch().Jobs("kube-system").Get(cleanupJobDef.Name, metav1.GetOptions{})
 			if err != nil {
-				return microerror.Maskf(err, "Failed to create pvc", pvc.GetName())
+				return microerror.Maskf(err, "failed to get cleanup claim", pvc.Name)
 			}
 		}
 
