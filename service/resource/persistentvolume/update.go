@@ -100,8 +100,6 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		if err != nil {
 			return microerror.Mask(err)
 		}
-	default:
-		return nil
 	}
 
 	return nil
