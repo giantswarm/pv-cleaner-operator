@@ -3,13 +3,13 @@ package persistentvolume
 import (
 	"fmt"
 	"k8s.io/client-go/kubernetes"
-	
+
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/framework"
+	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	batchv1 "k8s.io/api/batch/v1"
 )
 
 const (
@@ -144,7 +144,7 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        pv.Name,
 			Annotations: pv.Annotations,
-			Labels: pv.Labels,
+			Labels:      pv.Labels,
 		},
 		Spec: apiv1.PersistentVolumeSpec{
 			Capacity:                      pv.Spec.Capacity,
@@ -157,7 +157,7 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 
 	r.logger.Log("persistentvolume", pv.Name, "set new recycle annotation", recycleAnnotation)
 	updatedpv.ObjectMeta.Annotations[recycleStateAnnotation] = recycleAnnotation
-	
+
 	return updatedpv, nil
 }
 

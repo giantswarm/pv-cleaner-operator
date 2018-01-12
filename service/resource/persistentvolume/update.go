@@ -1,13 +1,13 @@
 package persistentvolume
 
 import (
-	"fmt"
 	"context"
-	"reflect"
+	"fmt"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/operatorkit/framework"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"reflect"
 )
 
 // NewUpdatePatch returns patch to apply on updated persistent volume.
@@ -26,7 +26,7 @@ func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desire
 
 // ApplyUpdateChange represents update patch logic.
 // All actions are based on combination of volume state
-// and custom recycle state. 
+// and custom recycle state.
 //   * ReleasedRecycled - initial state of volume after claim is deleted; volume is recreated at this step
 //   * AvailableCleaning - volume ready for bounding to cleanup claim
 //   * BoundCleaning - volume claim is ready for mounting into cleanup job
@@ -71,7 +71,7 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		if err != nil {
 			return microerror.Maskf(err, "failed to get persistent volume claim", pvcName)
 		}
-	
+
 		cleanupJobDef := newCleanupJob(pvc)
 		cleanupJob, err := r.k8sClient.Batch().Jobs("kube-system").Create(cleanupJobDef)
 		if errors.IsAlreadyExists(err) {
@@ -84,12 +84,12 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		if cleanupJob.Status.Succeeded != 1 {
 			r.logger.LogCtx(ctx, "job", cleanupJob.Name, "waiting for job to complete cleanup of pv", pv.Name)
 			return nil
-		}	
+		}
 
 		if err := r.k8sClient.Batch().Jobs("kube-system").Delete(cleanupJob.Name, &metav1.DeleteOptions{}); err != nil {
 			return microerror.Maskf(err, "failed to delete cleanup job", cleanupJob.Name)
 		}
-	
+
 		if err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
 			return microerror.Maskf(err, "failed to delete claim for persistent volume", pv.Name)
 		}
@@ -98,10 +98,10 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		if err != nil {
 			return microerror.Mask(err)
 		}
-	default: 
-	return nil
+	default:
+		return nil
 	}
-	
+
 	return nil
 }
 
