@@ -27,8 +27,7 @@ func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desire
 // ApplyUpdateChange represents update patch logic.
 // All actions are based on combination of volume state
 // and custom recycle state. 
-//   * ReleasedRecycled - initial state of volume after claim is deleted
-//   * ReleasedReleased - volume should be recreated to become Available for claim
+//   * ReleasedRecycled - initial state of volume after claim is deleted; volume is recreated at this step
 //   * AvailableCleaning - volume ready for bounding to cleanup claim
 //   * BoundCleaning - volume claim is ready for mounting into cleanup job
 //   * ReleasedCleaning - volume claim was succesfully cleaned up, volume can be recreated
@@ -51,12 +50,11 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 
 	switch combinedState := string(rpv.State) + rpv.RecycleState; combinedState {
 	case "ReleasedRecycled":
-		pv, err := r.newRecycleStateAnnotation(pv, released)
+		pv, err := r.newRecycleStateAnnotation(pv, recycled)
 		_, err = r.k8sClient.Core().PersistentVolumes().Update(pv)
 		if err != nil {
 			return microerror.Mask(err)
 		}
-	case "ReleasedReleased":
 		err = r.k8sClient.Core().PersistentVolumes().Delete(pv.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			return microerror.Mask(err)

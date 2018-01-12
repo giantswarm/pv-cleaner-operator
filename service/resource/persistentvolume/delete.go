@@ -40,7 +40,7 @@ func (r *Resource) ApplyDeleteChange(ctx context.Context, obj, deleteState inter
 
 	var recycleStateAnnotationValue string
 	switch rpv.RecycleState {
-	case "Released":
+	case "Recycled":
 		recycleStateAnnotationValue = cleaning
 	case "Cleaning":
 		recycleStateAnnotationValue = recycled

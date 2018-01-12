@@ -19,7 +19,6 @@ const (
 )
 
 const (
-	released string = "Released"
 	cleaning string = "Cleaning"
 	recycled string = "Recycled"
 )
