@@ -24,6 +24,14 @@ func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desire
 }
 
 // ApplyUpdateChange represents update patch logic.
+// All actions are based on combination of volume state
+// and custom recycle state. 
+//   * ReleasedRecycled - initial state of volume after claim is deleted
+//   * ReleasedReleased - volume should be recreated to become Available for claim
+//   * AvailableCleaning - volume ready for bounding to cleanup claim
+//   * BoundCleaning - volume claim is ready for mounting into cleanup job
+//   * ReleasedCleaning - volume claim was succesfully cleaned up, volume can be recreated
+//   * AvailableRecycled - desired state of the volume
 func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState interface{}) error {
 	rpv, err := toRecyclePV(updateState)
 	if err != nil {
