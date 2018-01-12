@@ -79,6 +79,8 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 			if err != nil {
 				return microerror.Maskf(err, "failed to get cleanup claim", pvc.Name)
 			}
+		} else if err != nil {
+			return microerror.Maskf(err, "failed to create cleanup claim", pvc.Name)
 		}
 
 		if cleanupJob.Status.Succeeded != 1 {
