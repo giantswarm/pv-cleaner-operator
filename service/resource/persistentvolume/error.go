@@ -17,24 +17,3 @@ var wrongTypeError = microerror.New("wrong type")
 func IsWrongTypeError(err error) bool {
 	return microerror.Cause(err) == wrongTypeError
 }
-
-var missingAnnotationError = microerror.New("missing annotation")
-
-// IsMissingAnnotationError asserts missingAnnotationError.
-func IsMissingAnnotationError(err error) bool {
-	return microerror.Cause(err) == missingAnnotationError
-}
-
-var waitResourceError = microerror.New("waitResource")
-
-// IsWaitTimeout asserts invalidConfigError.
-func IsWaitReosurce(err error) bool {
-	return microerror.Cause(err) == waitResourceError
-}
-
-var waitTimeoutError = microerror.New("waitTimeout")
-
-// IsWaitTimeout asserts invalidConfigError.
-func IsWaitTimeout(err error) bool {
-	return microerror.Cause(err) == waitTimeoutError
-}
