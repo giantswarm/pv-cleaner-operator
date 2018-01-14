@@ -3,11 +3,12 @@ package persistentvolume
 import (
 	"context"
 	"fmt"
+	"reflect"
+
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/operatorkit/framework"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"reflect"
 )
 
 // NewUpdatePatch returns patch to apply on updated persistent volume.
@@ -111,13 +112,6 @@ func (r *Resource) newUpdateChange(ctx context.Context, obj, currentState, desir
 	updatedVolume, err := toPV(obj)
 	if err != nil {
 		return nil, microerror.Mask(err)
-	}
-
-	r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "retrieving cleanup annotation", cleanupAnnotation)
-	reconcile := isScheduledForCleanup(updatedVolume, cleanupAnnotation)
-	r.logger.LogCtx(ctx, "persistentvolume", updatedVolume.Name, "reconcile persistent volume", reconcile)
-	if !reconcile {
-		return nil, nil
 	}
 
 	if reflect.DeepEqual(currentState, desiredState) {

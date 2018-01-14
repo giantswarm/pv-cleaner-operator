@@ -9,9 +9,16 @@ import (
 // GetCurrentState returns current state of the recycled persistent volume.
 func (r *Resource) GetCurrentState(ctx context.Context, obj interface{}) (interface{}, error) {
 
-	rpv, err := pvToRecyclePV(obj)
+	pv, err := toPV(obj)
 	if err != nil {
 		return nil, microerror.Maskf(err, "GetCurrentState")
+	}
+
+	recycleState := getRecycleStateAnnotation(pv, recycleStateAnnotation)
+	rpv := &RecyclePersistentVolume{
+		Name:         pv.Name,
+		State:        pv.Status.Phase,
+		RecycleState: recycleState,
 	}
 
 	return rpv, nil
@@ -20,7 +27,7 @@ func (r *Resource) GetCurrentState(ctx context.Context, obj interface{}) (interf
 // GetDesiredState returns desired state of the recycled persistent volume.
 func (r *Resource) GetDesiredState(ctx context.Context, obj interface{}) (interface{}, error) {
 
-	pv, err := pvToRecyclePV(obj)
+	pv, err := toPV(obj)
 	if err != nil {
 		return nil, microerror.Maskf(err, "GetDesiredState")
 	}
@@ -30,5 +37,6 @@ func (r *Resource) GetDesiredState(ctx context.Context, obj interface{}) (interf
 		State:        "Available",
 		RecycleState: recycled,
 	}
+
 	return rpv, nil
 }
