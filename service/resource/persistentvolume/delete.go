@@ -10,13 +10,8 @@ import (
 // NewDeletePatch returns patch to apply on deleted persistent volume.
 func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
 
-	deleteState, err := r.newDeleteChange(ctx, obj, currentState, desiredState)
-	if err != nil {
-		return nil, microerror.Mask(err)
-	}
-
 	patch := framework.NewPatch()
-	patch.SetDeleteChange(deleteState)
+	patch.SetDeleteChange(currentState)
 
 	return patch, nil
 }
@@ -58,22 +53,4 @@ func (r *Resource) ApplyDeleteChange(ctx context.Context, obj, deleteState inter
 	}
 
 	return nil
-}
-
-// newDeleteChange checks wherether persistent volume should be reconciled
-// on delete event.
-func (r *Resource) newDeleteChange(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, error) {
-	deletedVolume, err := toPV(obj)
-	if err != nil {
-		return nil, microerror.Mask(err)
-	}
-
-	r.logger.LogCtx(ctx, "persistentvolume", deletedVolume.Name, "retrieving cleanup annotation of deleted volume", cleanupAnnotation)
-	reconcile := isScheduledForCleanup(deletedVolume, cleanupAnnotation)
-	r.logger.LogCtx(ctx, "persistentvolume", deletedVolume.Name, "reconcile deleted persistent volume", reconcile)
-	if !reconcile {
-		return nil, nil
-	}
-
-	return currentState, nil
 }

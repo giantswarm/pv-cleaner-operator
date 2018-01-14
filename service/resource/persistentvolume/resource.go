@@ -2,6 +2,7 @@ package persistentvolume
 
 import (
 	"fmt"
+
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/microerror"
@@ -14,7 +15,6 @@ import (
 
 const (
 	name                   = "persistentvolume"
-	cleanupAnnotation      = "volume.kubernetes.io/cleanup-on-release"
 	recycleStateAnnotation = "pv-cleaner-operator.giantswarm.io/volume-recycle-state"
 )
 
@@ -68,12 +68,6 @@ func (r *Resource) Name() string {
 // Underlying returns managed resource object.
 func (r *Resource) Underlying() framework.Resource {
 	return r
-}
-
-// isScheduledForCleanup checks whethere persistent volume object has cleanup annotation.
-func isScheduledForCleanup(pv *apiv1.PersistentVolume, cleanupAnnotation string) bool {
-	cleanupAnnotationValue, ok := pv.Annotations[cleanupAnnotation]
-	return ok && cleanupAnnotationValue == "true"
 }
 
 // getRecycleStateAnnotation returns current recycle state annotation.
