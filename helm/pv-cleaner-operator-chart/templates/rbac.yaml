@@ -1,0 +1,63 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: pv-cleaner-operator
+rules:
+  - apiGroups: [""]
+    resources:
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs:
+      - "*"
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs:
+      - "*"
+  - apiGroups:
+    - ""
+    resources:
+    - configmaps
+    - secrets
+    verbs:
+    - get
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: pv-cleaner-operator
+subjects:
+  - kind: ServiceAccount
+    name: pv-cleaner-operator
+    namespace: giantswarm
+roleRef:
+  kind: ClusterRole
+  name: pv-cleaner-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: pv-cleaner-operator-psp
+rules:
+  - apiGroups:
+      - extensions
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+    resourceNames:
+      - pv-cleaner-operator-psp
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: pv-cleaner-operator-psp
+subjects:
+  - kind: ServiceAccount
+    name: pv-cleaner-operator
+    namespace: giantswarm
+roleRef:
+  kind: ClusterRole
+  name: pv-cleaner-operator-psp
+  apiGroup: rbac.authorization.k8s.io
