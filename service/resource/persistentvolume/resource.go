@@ -163,10 +163,12 @@ func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
 			Namespace: "kube-system",
+			Annotations: map[string]string{
+				"volume.beta.kubernetes.io/storage-class": pv.Spec.StorageClassName,
+			},
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
-			StorageClassName: &pv.Spec.StorageClassName,
-			AccessModes:      pv.Spec.AccessModes,
+			AccessModes: pv.Spec.AccessModes,
 			Resources: apiv1.ResourceRequirements{
 				Requests: pv.Spec.Capacity,
 			},
