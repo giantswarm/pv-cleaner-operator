@@ -15,6 +15,7 @@ import (
 
 const (
 	name                   = "persistentvolume"
+	storageClassAnnotation = "volume.beta.kubernetes.io/storage-class"
 	recycleStateAnnotation = "pv-cleaner-operator.giantswarm.io/volume-recycle-state"
 )
 
@@ -159,12 +160,14 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 // which bounds persistent volume from function parameter.
 func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 
+	storageClassAnnotationValue := getVolumeAnnotation(pv, storageClassAnnotation)
+
 	pvc := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
 			Namespace: "kube-system",
 			Annotations: map[string]string{
-				"volume.beta.kubernetes.io/storage-class": pv.Spec.StorageClassName,
+				"volume.beta.kubernetes.io/storage-class": storageClassAnnotationValue,
 			},
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
