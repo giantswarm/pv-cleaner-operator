@@ -143,7 +143,6 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 		},
 		Spec: apiv1.PersistentVolumeSpec{
 			Capacity:                      pv.Spec.Capacity,
-			StorageClassName:              pv.Spec.StorageClassName,
 			AccessModes:                   pv.Spec.AccessModes,
 			PersistentVolumeReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
 			PersistentVolumeSource:        pv.Spec.PersistentVolumeSource,
