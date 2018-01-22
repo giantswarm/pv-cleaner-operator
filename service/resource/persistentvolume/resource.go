@@ -166,7 +166,7 @@ func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
 			Namespace: "kube-system",
 			Annotations: map[string]string{
-				"volume.beta.kubernetes.io/storage-class": storageClassAnnotationValue,
+				storageClassAnnotation: storageClassAnnotationValue,
 			},
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
