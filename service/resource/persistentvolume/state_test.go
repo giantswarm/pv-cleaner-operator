@@ -13,10 +13,12 @@ import (
 
 func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 	testCases := []struct {
+		description                     string
 		obj                             interface{}
 		expectedRecyclePersistentVolume interface{}
 	}{
 		{
+			description: "recycle annotation is empty, expected recycle volume with 'Recycled' annotation",
 			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "TestPersistentVolume",
@@ -33,6 +35,7 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 			},
 		},
 		{
+			description: "recycle annotation is 'Cleaning', expected recycle volume with `Cleaning` annotation",
 			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "TestPersistentVolume",
@@ -51,6 +54,7 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 			},
 		},
 		{
+			description: "recycle annotation is `Recycled`, expected recycle volume with 'Recycled' annotation",
 			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "TestPersistentVolume",
@@ -96,10 +100,12 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 
 func Test_Resource_RecyclePersistentVolume_GetDesiredState(t *testing.T) {
 	testCases := []struct {
+		description                     string
 		obj                             interface{}
 		expectedRecyclePersistentVolume interface{}
 	}{
 		{
+			description: "recycle annotation is empty, expected recycle volume with 'Recycled' annotation",
 			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "TestPersistentVolume",
