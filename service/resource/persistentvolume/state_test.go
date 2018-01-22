@@ -87,14 +87,16 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		result, err := newResource.GetCurrentState(context.TODO(), tc.obj)
-		if err != nil {
-			t.Fatalf("case %d unexpected error returned getting desired state: %s\n", i+1, err)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			result, err := newResource.GetCurrentState(context.TODO(), tc.obj)
+			if err != nil {
+				t.Fatalf("case %d unexpected error returned getting desired state: %s\n", i+1, err)
+			}
 
-		if !reflect.DeepEqual(tc.expectedRecyclePersistentVolume, result) {
-			t.Fatalf("case %d expected %#v got %#v", i+1, tc.expectedRecyclePersistentVolume, result)
-		}
+			if !reflect.DeepEqual(tc.expectedRecyclePersistentVolume, result) {
+				t.Fatalf("case %d expected %#v got %#v", i+1, tc.expectedRecyclePersistentVolume, result)
+			}
+		})
 	}
 }
 
@@ -136,13 +138,15 @@ func Test_Resource_RecyclePersistentVolume_GetDesiredState(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		result, err := newResource.GetDesiredState(context.TODO(), tc.obj)
-		if err != nil {
-			t.Fatalf("case %d unexpected error returned getting desired state: %s\n", i+1, err)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			result, err := newResource.GetDesiredState(context.TODO(), tc.obj)
+			if err != nil {
+				t.Fatalf("case %d unexpected error returned getting desired state: %s\n", i+1, err)
+			}
 
-		if !reflect.DeepEqual(tc.expectedRecyclePersistentVolume, result) {
-			t.Fatalf("case %d expected %#v got %#v", i+1, tc.expectedRecyclePersistentVolume, result)
-		}
+			if !reflect.DeepEqual(tc.expectedRecyclePersistentVolume, result) {
+				t.Fatalf("case %d expected %#v got %#v", i+1, tc.expectedRecyclePersistentVolume, result)
+			}
+		})
 	}
 }
