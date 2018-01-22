@@ -13,11 +13,11 @@ import (
 
 func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 	testCases := []struct {
-		Obj                             interface{}
-		ExpectedRecyclePersistentVolume interface{}
+		obj                             interface{}
+		expectedRecyclePersistentVolume interface{}
 	}{
 		{
-			Obj: &apiv1.PersistentVolume{
+			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "TestPersistentVolume",
 					Annotations: map[string]string{},
@@ -26,14 +26,14 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 					Phase: "Available",
 				},
 			},
-			ExpectedRecyclePersistentVolume: &RecyclePersistentVolume{
+			expectedRecyclePersistentVolume: &RecyclePersistentVolume{
 				Name:         "TestPersistentVolume",
 				State:        "Available",
 				RecycleState: recycled,
 			},
 		},
 		{
-			Obj: &apiv1.PersistentVolume{
+			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "TestPersistentVolume",
 					Annotations: map[string]string{
@@ -44,14 +44,14 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 					Phase: "Bound",
 				},
 			},
-			ExpectedRecyclePersistentVolume: &RecyclePersistentVolume{
+			expectedRecyclePersistentVolume: &RecyclePersistentVolume{
 				Name:         "TestPersistentVolume",
 				State:        "Bound",
 				RecycleState: cleaning,
 			},
 		},
 		{
-			Obj: &apiv1.PersistentVolume{
+			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "TestPersistentVolume",
 					Annotations: map[string]string{
@@ -62,7 +62,7 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 					Phase: "Released",
 				},
 			},
-			ExpectedRecyclePersistentVolume: &RecyclePersistentVolume{
+			expectedRecyclePersistentVolume: &RecyclePersistentVolume{
 				Name:         "TestPersistentVolume",
 				State:        "Released",
 				RecycleState: recycled,
@@ -83,24 +83,24 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		result, err := newResource.GetCurrentState(context.TODO(), tc.Obj)
+		result, err := newResource.GetCurrentState(context.TODO(), tc.obj)
 		if err != nil {
 			t.Fatalf("case %d unexpected error returned getting desired state: %s\n", i+1, err)
 		}
 
-		if !reflect.DeepEqual(tc.ExpectedRecyclePersistentVolume, result) {
-			t.Fatalf("case %d expected %#v got %#v", i+1, tc.ExpectedRecyclePersistentVolume, result)
+		if !reflect.DeepEqual(tc.expectedRecyclePersistentVolume, result) {
+			t.Fatalf("case %d expected %#v got %#v", i+1, tc.expectedRecyclePersistentVolume, result)
 		}
 	}
 }
 
 func Test_Resource_RecyclePersistentVolume_GetDesiredState(t *testing.T) {
 	testCases := []struct {
-		Obj                             interface{}
-		ExpectedRecyclePersistentVolume interface{}
+		obj                             interface{}
+		expectedRecyclePersistentVolume interface{}
 	}{
 		{
-			Obj: &apiv1.PersistentVolume{
+			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "TestPersistentVolume",
 					Annotations: map[string]string{},
@@ -109,7 +109,7 @@ func Test_Resource_RecyclePersistentVolume_GetDesiredState(t *testing.T) {
 					Phase: "Available",
 				},
 			},
-			ExpectedRecyclePersistentVolume: &RecyclePersistentVolume{
+			expectedRecyclePersistentVolume: &RecyclePersistentVolume{
 				Name:         "TestPersistentVolume",
 				State:        "Available",
 				RecycleState: recycled,
@@ -130,13 +130,13 @@ func Test_Resource_RecyclePersistentVolume_GetDesiredState(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		result, err := newResource.GetDesiredState(context.TODO(), tc.Obj)
+		result, err := newResource.GetDesiredState(context.TODO(), tc.obj)
 		if err != nil {
 			t.Fatalf("case %d unexpected error returned getting desired state: %s\n", i+1, err)
 		}
 
-		if !reflect.DeepEqual(tc.ExpectedRecyclePersistentVolume, result) {
-			t.Fatalf("case %d expected %#v got %#v", i+1, tc.ExpectedRecyclePersistentVolume, result)
+		if !reflect.DeepEqual(tc.expectedRecyclePersistentVolume, result) {
+			t.Fatalf("case %d expected %#v got %#v", i+1, tc.expectedRecyclePersistentVolume, result)
 		}
 	}
 }
