@@ -14,7 +14,7 @@ func (r *Resource) GetCurrentState(ctx context.Context, obj interface{}) (interf
 		return nil, microerror.Maskf(err, "GetCurrentState")
 	}
 
-	recycleState := getRecycleStateAnnotation(pv, recycleStateAnnotation)
+	recycleState := getVolumeAnnotation(pv, recycleStateAnnotation)
 	rpv := &RecyclePersistentVolume{
 		Name:         pv.Name,
 		State:        pv.Status.Phase,

@@ -78,10 +78,10 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		if errors.IsAlreadyExists(err) {
 			cleanupJob, err = r.k8sClient.Batch().Jobs("kube-system").Get(cleanupJobDef.Name, metav1.GetOptions{})
 			if err != nil {
-				return microerror.Maskf(err, "failed to get cleanup claim", pvc.Name)
+				return microerror.Maskf(err, "failed to get cleanup job", pvc.Name)
 			}
 		} else if err != nil {
-			return microerror.Maskf(err, "failed to create cleanup claim", pvc.Name)
+			return microerror.Maskf(err, "failed to create cleanup job", pvc.Name)
 		}
 
 		if cleanupJob.Status.Succeeded != 1 {
