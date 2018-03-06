@@ -15,6 +15,7 @@ import (
 
 const (
 	name                   = "persistentvolume"
+	storageClassAnnotation = "volume.beta.kubernetes.io/storage-class"
 	recycleStateAnnotation = "pv-cleaner-operator.giantswarm.io/volume-recycle-state"
 )
 
@@ -70,16 +71,16 @@ func (r *Resource) Underlying() framework.Resource {
 	return r
 }
 
-// getRecycleStateAnnotation returns current recycle state annotation.
+// getVolumeAnnotation returns current recycle state annotation.
 // If it is empty - 'recycled' annotation returned,
 // so that volumes, which were never recycled before by the operator
 // will be considered in the same way as recycled volumes.
-func getRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycleStateAnnotation string) (recycleStateAnnotationValue string) {
-	recycleStateAnnotationValue, ok := pv.Annotations[recycleStateAnnotation]
+func getVolumeAnnotation(pv *apiv1.PersistentVolume, annotation string) (annotationValue string) {
+	annotationValue, ok := pv.Annotations[annotation]
 	if !ok {
-		recycleStateAnnotationValue = recycled
+		annotationValue = recycled
 	}
-	return recycleStateAnnotationValue
+	return annotationValue
 }
 
 // toPV converts interface object into PersistentVolume object.
@@ -124,7 +125,7 @@ func pvToRecyclePV(v interface{}) (*RecyclePersistentVolume, error) {
 	rpv := &RecyclePersistentVolume{
 		Name:         pv.Name,
 		State:        pv.Status.Phase,
-		RecycleState: getRecycleStateAnnotation(pv, recycleStateAnnotation),
+		RecycleState: getVolumeAnnotation(pv, recycleStateAnnotation),
 	}
 
 	return rpv, nil
@@ -142,7 +143,6 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 		},
 		Spec: apiv1.PersistentVolumeSpec{
 			Capacity:                      pv.Spec.Capacity,
-			StorageClassName:              pv.Spec.StorageClassName,
 			AccessModes:                   pv.Spec.AccessModes,
 			PersistentVolumeReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
 			PersistentVolumeSource:        pv.Spec.PersistentVolumeSource,
@@ -159,14 +159,18 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 // which bounds persistent volume from function parameter.
 func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 
+	storageClassAnnotationValue := getVolumeAnnotation(pv, storageClassAnnotation)
+
 	pvc := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
 			Namespace: "kube-system",
+			Annotations: map[string]string{
+				storageClassAnnotation: storageClassAnnotationValue,
+			},
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
-			StorageClassName: &pv.Spec.StorageClassName,
-			AccessModes:      pv.Spec.AccessModes,
+			AccessModes: pv.Spec.AccessModes,
 			Resources: apiv1.ResourceRequirements{
 				Requests: pv.Spec.Capacity,
 			},
