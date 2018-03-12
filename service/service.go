@@ -8,13 +8,14 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/client/k8srestconfig"
-	"github.com/giantswarm/pv-cleaner-operator/service/operator"
+	"github.com/giantswarm/operatorkit/framework"
 	"github.com/spf13/viper"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	"github.com/giantswarm/pv-cleaner-operator/flag"
+	"github.com/giantswarm/pv-cleaner-operator/service/persistentvolume"
 )
 
 // Config represents the configuration used to create a new service.
@@ -72,15 +73,17 @@ func New(config Config) (*Service, error) {
 
 	var restConfig *rest.Config
 	{
-		c := k8srestconfig.DefaultConfig()
+		c := k8srestconfig.Config{
+			Logger: config.Logger,
 
-		c.Logger = config.Logger
-
-		c.Address = config.Viper.GetString(config.Flag.Service.Kubernetes.Address)
-		c.InCluster = config.Viper.GetBool(config.Flag.Service.Kubernetes.InCluster)
-		c.TLS.CAFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CAFile)
-		c.TLS.CrtFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CrtFile)
-		c.TLS.KeyFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.KeyFile)
+			Address:   config.Viper.GetString(config.Flag.Service.Kubernetes.Address),
+			InCluster: config.Viper.GetBool(config.Flag.Service.Kubernetes.InCluster),
+			TLS: k8srestconfig.TLSClientConfig{
+				CAFile:  config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CAFile),
+				CrtFile: config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CrtFile),
+				KeyFile: config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.KeyFile),
+			},
+		}
 
 		restConfig, err = k8srestconfig.New(c)
 		if err != nil {
@@ -93,16 +96,18 @@ func New(config Config) (*Service, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	var operatorService *operator.Service
+	var persistentVolumeFramework *framework.Framework
 	{
-		operatorConfig := operator.DefaultConfig()
-		operatorConfig.Logger = config.Logger
-		operatorConfig.K8sClient = k8sClient
-
-		operatorService, err = operator.New(operatorConfig)
-		if err != nil {
-			return nil, microerror.Maskf(err, "operator.New")
+		c := persistentvolume.FrameworkConfig{
+			K8sClient: k8sClient,
+			Logger:    config.Logger,
 		}
+
+		persistentVolumeFramework, err = persistentvolume.NewFramework(c)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+
 	}
 
 	var versionService *version.Service
@@ -121,8 +126,8 @@ func New(config Config) (*Service, error) {
 
 	newService := &Service{
 		// Dependencies.
-		Operator: operatorService,
-		Version:  versionService,
+		PersistentVolumeFramework: persistentVolumeFramework,
+		Version:                   versionService,
 
 		// Internals
 		bootOnce: sync.Once{},
@@ -132,16 +137,14 @@ func New(config Config) (*Service, error) {
 }
 
 type Service struct {
-	// Dependencies.
-	Operator *operator.Service
-	Version  *version.Service
+	PersistentVolumeFramework *framework.Framework
+	Version                   *version.Service
 
-	// Internals.
 	bootOnce sync.Once
 }
 
 func (s *Service) Boot() {
 	s.bootOnce.Do(func() {
-		s.Operator.Boot()
+		s.PersistentVolumeFramework.Boot()
 	})
 }

@@ -13,88 +13,54 @@ import (
 	"github.com/giantswarm/micrologger/loggermeta"
 	"github.com/prometheus/client_golang/prometheus"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/giantswarm/operatorkit/client/k8scrdclient"
 	"github.com/giantswarm/operatorkit/framework/context/reconciliationcanceledcontext"
-	"github.com/giantswarm/operatorkit/framework/context/resourcecanceledcontext"
-	"github.com/giantswarm/operatorkit/framework/context/updateallowedcontext"
-	"github.com/giantswarm/operatorkit/framework/context/updatenecessarycontext"
 	"github.com/giantswarm/operatorkit/informer"
+)
+
+const (
+	loggerResourceKey = "resource"
 )
 
 // Config represents the configuration used to create a new operator framework.
 type Config struct {
-	// Dependencies.
-
 	CRD       *apiextensionsv1beta1.CustomResourceDefinition
 	CRDClient *k8scrdclient.CRDClient
 	Informer  informer.Interface
-	// InitCtxFunc is to prepare the given context for a single reconciliation
-	// loop. Operators can implement common context packages to enable
-	// communication between resources. These context packages can be set up
-	// within the context initializer function. InitCtxFunc receives the custom
-	// object being reconciled as second argument. Information provided by the
-	// custom object can be used to initialize the context.
-	InitCtxFunc func(ctx context.Context, obj interface{}) (context.Context, error)
-	Logger      micrologger.Logger
-	// ResourceRouter is to decide which resources to execute. Each custom object
-	// being reconciled is executed against a list of resources. Since custom
-	// objects may differ in version and/or structure the resource router enables
-	// custom inspection before each reconciliation loop. That way whole resources
-	// can be versioned and different resources can be executed depending on the
-	// custom object being reconciled.
-	ResourceRouter func(ctx context.Context, obj interface{}) ([]Resource, error)
+	Logger    micrologger.Logger
+	// ResourceRouter determines which resource set to use on reconciliation based
+	// on its own implementation. A resource router is to decide which resource
+	// set to execute. A resource set provides a specific function to initialize
+	// the request context and a list of resources to be executed for a
+	// reconciliation loop. That way each runtime object being reconciled is
+	// executed against a desired list of resources. Since runtime objects may
+	// differ in version and/or structure the resource router enables custom
+	// inspection before each reconciliation loop. That way the complete list of
+	// resources being executed for the received runtime object can be versioned
+	// and different resources can be executed depending on the runtime object
+	// being reconciled.
+	ResourceRouter *ResourceRouter
 
-	// Settings.
 	BackOffFactory func() backoff.BackOff
 }
 
-// DefaultConfig provides a default configuration to create a new operator
-// framework by best effort.
-func DefaultConfig() Config {
-	return Config{
-		// Dependencies.
-		CRD:            nil,
-		CRDClient:      nil,
-		Informer:       nil,
-		Logger:         nil,
-		ResourceRouter: nil,
-
-		// Settings.
-		BackOffFactory: func() backoff.BackOff {
-			b := backoff.NewExponentialBackOff()
-			b.MaxElapsedTime = 0
-			return backoff.WithMaxTries(b, 7)
-		},
-		InitCtxFunc: func(ctx context.Context, obj interface{}) (context.Context, error) {
-			return ctx, nil
-		},
-	}
-}
-
 type Framework struct {
-	// Dependencies.
 	crd            *apiextensionsv1beta1.CustomResourceDefinition
 	crdClient      *k8scrdclient.CRDClient
 	informer       informer.Interface
 	logger         micrologger.Logger
-	resourceRouter func(ctx context.Context, obj interface{}) ([]Resource, error)
+	resourceRouter *ResourceRouter
 
-	// Settings.
-	backOffFactory func() backoff.BackOff
-	initCtxFunc    func(ctx context.Context, obj interface{}) (context.Context, error)
-
-	// Internals.
 	bootOnce sync.Once
 	mutex    sync.Mutex
+
+	backOffFactory func() backoff.BackOff
 }
 
 // New creates a new configured operator framework.
 func New(config Config) (*Framework, error) {
-	// Dependencies.
 	if config.CRD != nil && config.CRDClient == nil || config.CRD == nil && config.CRDClient != nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.CRD and config.CRDClient must not be empty when either given")
 	}
@@ -108,93 +74,24 @@ func New(config Config) (*Framework, error) {
 		return nil, microerror.Maskf(invalidConfigError, "config.ResourceRouter must not be empty")
 	}
 
-	// Settings.
 	if config.BackOffFactory == nil {
-		return nil, microerror.Maskf(invalidConfigError, "config.BackOffFactory must not be empty")
-	}
-	if config.InitCtxFunc == nil {
-		return nil, microerror.Maskf(invalidConfigError, "config.InitCtxFunc must not be empty")
-	}
-
-	initCtxFunc := func(ctx context.Context, obj interface{}) (context.Context, error) {
-		ctx = reconciliationcanceledcontext.NewContext(ctx, make(chan struct{}))
-		ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-		ctx = updateallowedcontext.NewContext(ctx, make(chan struct{}))
-		ctx = updatenecessarycontext.NewContext(ctx, make(chan struct{}))
-
-		ctx, err := config.InitCtxFunc(ctx, obj)
-		if err != nil {
-			return nil, microerror.Maskf(err, "initializing context")
-		}
-
-		accessor, err := meta.Accessor(obj)
-		if err != nil {
-			config.Logger.Log("warning", fmt.Sprintf("cannot create accessor for object %#v", obj))
-		} else {
-			meta, ok := loggermeta.FromContext(ctx)
-			if !ok {
-				meta = loggermeta.New()
-			}
-			meta.KeyVals["object"] = accessor.GetSelfLink()
-
-			ctx = loggermeta.NewContext(ctx, meta)
-		}
-
-		return ctx, nil
+		config.BackOffFactory = DefaultBackOffFactory()
 	}
 
 	f := &Framework{
-		// Dependencies.
 		crd:            config.CRD,
 		crdClient:      config.CRDClient,
 		informer:       config.Informer,
 		logger:         config.Logger,
 		resourceRouter: config.ResourceRouter,
 
-		// Settings.
-		backOffFactory: config.BackOffFactory,
-		initCtxFunc:    initCtxFunc,
-
-		// Internals.
 		bootOnce: sync.Once{},
 		mutex:    sync.Mutex{},
+
+		backOffFactory: config.BackOffFactory,
 	}
 
 	return f, nil
-}
-
-// AddFunc executes the framework's ProcessCreate function.
-func (f *Framework) AddFunc(obj interface{}) {
-	// AddFunc/DeleteFunc/UpdateFunc is synchronized to make sure only one
-	// of them is executed at a time. AddFunc/DeleteFunc/UpdateFunc is not
-	// thread safe. This is important because the source of truth for an
-	// operator are the reconciled resources. In case we would run the
-	// operator logic in parallel, we would run into race conditions.
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
-
-	ctx := context.Background()
-	ctx, err := f.initCtxFunc(ctx, obj)
-	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "create")
-		return
-	}
-
-	rs, err := f.resourceRouter(ctx, obj)
-	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "create")
-		return
-	}
-
-	f.logger.LogCtx(ctx, "action", "start", "component", "operatorkit", "function", "ProcessCreate")
-
-	err = ProcessCreate(ctx, obj, rs)
-	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "create")
-		return
-	}
-
-	f.logger.LogCtx(ctx, "action", "end", "component", "operatorkit", "function", "ProcessCreate")
 }
 
 func (f *Framework) Boot() {
@@ -211,12 +108,12 @@ func (f *Framework) Boot() {
 		}
 
 		notifier := func(err error, d time.Duration) {
-			f.logger.LogCtx(ctx, "warning", fmt.Sprintf("retrying operator boot due to error: %#v", microerror.Mask(err)))
+			f.logger.LogCtx(ctx, "function", "Boot", "level", "warning", "message", "retrying framework boot due to error", "stack", fmt.Sprintf("%#v", err))
 		}
 
 		err := backoff.RetryNotify(operation, f.backOffFactory(), notifier)
 		if err != nil {
-			f.logger.LogCtx(ctx, "error", fmt.Sprintf("stop operator boot retries due to too many errors: %#v", microerror.Mask(err)))
+			f.logger.LogCtx(ctx, "function", "Boot", "level", "error", "message", "stop framework boot retries due to too many errors", "stack", fmt.Sprintf("%#v", err))
 			os.Exit(1)
 		}
 	})
@@ -224,273 +121,35 @@ func (f *Framework) Boot() {
 
 // DeleteFunc executes the framework's ProcessDelete function.
 func (f *Framework) DeleteFunc(obj interface{}) {
-	// AddFunc/DeleteFunc/UpdateFunc is synchronized to make sure only one
-	// of them is executed at a time. AddFunc/DeleteFunc/UpdateFunc is not
-	// thread safe. This is important because the source of truth for an
-	// operator are the reconciled resources. In case we would run the
-	// operator logic in parallel, we would run into race conditions.
+	// DeleteFunc/UpdateFunc is synchronized to make sure only one of them is
+	// executed at a time. DeleteFunc/UpdateFunc is not thread safe. This is
+	// important because the source of truth for an operator are the reconciled
+	// resources. In case we would run the operator logic in parallel, we would
+	// run into race conditions.
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
-	ctx := context.Background()
-	ctx, err := f.initCtxFunc(ctx, obj)
-	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "delete")
+	resourceSet, err := f.resourceRouter.ResourceSet(obj)
+	if IsNoResourceSet(err) {
+		// In case the resource router is not able to find any resource set to
+		// handle the reconciled runtime object, we stop here.
+		return
+	} else if err != nil {
+		f.logger.Log("event", "delete", "function", "DeleteFunc", "level", "error", "message", "stop framework reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
-	rs, err := f.resourceRouter(ctx, obj)
+	ctx, err := resourceSet.InitCtx(context.Background(), obj)
 	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "delete")
+		f.logger.Log("event", "delete", "function", "DeleteFunc", "level", "error", "message", "stop framework reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
-	f.logger.LogCtx(ctx, "action", "start", "component", "operatorkit", "function", "ProcessDelete")
-
-	err = ProcessDelete(ctx, obj, rs)
+	err = ProcessDelete(ctx, obj, resourceSet.Resources())
 	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "delete")
+		f.logger.LogCtx(ctx, "event", "delete", "function", "DeleteFunc", "level", "error", "message", "stop framework reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
-
-	f.logger.LogCtx(ctx, "action", "end", "component", "operatorkit", "function", "ProcessDelete")
-}
-
-// NewCacheResourceEventHandler returns the framework's event handler for the
-// k8s client's cache informer implementation. The event handler has functions
-// registered for the k8s client's add, delete and update events.
-func (f *Framework) NewCacheResourceEventHandler() *cache.ResourceEventHandlerFuncs {
-	newHandler := &cache.ResourceEventHandlerFuncs{
-		AddFunc:    f.AddFunc,
-		DeleteFunc: f.DeleteFunc,
-		UpdateFunc: f.UpdateFunc,
-	}
-
-	return newHandler
-}
-
-// UpdateFunc executes the framework's ProcessUpdate function.
-func (f *Framework) UpdateFunc(oldObj, newObj interface{}) {
-	obj := newObj
-
-	// AddFunc/DeleteFunc/UpdateFunc is synchronized to make sure only one
-	// of them is executed at a time. AddFunc/DeleteFunc/UpdateFunc is not
-	// thread safe. This is important because the source of truth for an
-	// operator are the reconciled resources. In case we would run the
-	// operator logic in parallel, we would run into race conditions.
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
-
-	ctx := context.Background()
-	ctx, err := f.initCtxFunc(ctx, obj)
-	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "update")
-		return
-	}
-
-	rs, err := f.resourceRouter(ctx, obj)
-	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "update")
-		return
-	}
-
-	f.logger.LogCtx(ctx, "action", "start", "component", "operatorkit", "function", "ProcessUpdate")
-
-	err = ProcessUpdate(ctx, obj, rs)
-	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("%#v", err), "event", "update")
-		return
-	}
-
-	f.logger.LogCtx(ctx, "action", "end", "component", "operatorkit", "function", "ProcessUpdate")
-}
-
-// ProcessCreate is a drop-in for an informer's AddFunc. It receives the custom
-// object observed during custom resource watches and anything that implements
-// Resource. ProcessCreate takes care about all necessary reconciliation logic
-// for create events.
-//
-//     func addFunc(obj interface{}) {
-//         err := f.ProcessCreate(obj, resources)
-//         if err != nil {
-//             // error handling here
-//         }
-//     }
-//
-//     newResourceEventHandler := &cache.ResourceEventHandlerFuncs{
-//         AddFunc:    addFunc,
-//     }
-//
-func ProcessCreate(ctx context.Context, obj interface{}, resources []Resource) error {
-	err := ProcessUpdate(ctx, obj, resources)
-	if err != nil {
-		return microerror.Mask(err)
-	}
-	return nil
-}
-
-// ProcessDelete is a drop-in for an informer's DeleteFunc. It receives the
-// custom object observed during custom resource watches and anything that
-// implements Resource. ProcessDelete takes care about all necessary
-// reconciliation logic for delete events.
-//
-//     func deleteFunc(obj interface{}) {
-//         err := f.ProcessDelete(obj, resources)
-//         if err != nil {
-//             // error handling here
-//         }
-//     }
-//
-//     newResourceEventHandler := &cache.ResourceEventHandlerFuncs{
-//         DeleteFunc:    deleteFunc,
-//     }
-//
-func ProcessDelete(ctx context.Context, obj interface{}, resources []Resource) error {
-	if len(resources) == 0 {
-		return microerror.Maskf(executionFailedError, "resources must not be empty")
-	}
-
-	for _, r := range resources {
-		var err error
-
-		var currentState interface{}
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			meta, ok := loggermeta.FromContext(ctx)
-			if ok {
-				meta.KeyVals["function"] = "GetCurrentState"
-				defer delete(meta.KeyVals, "function")
-			}
-			currentState, err = r.GetCurrentState(ctx, obj)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-		}
-
-		var desiredState interface{}
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			meta, ok := loggermeta.FromContext(ctx)
-			if ok {
-				meta.KeyVals["function"] = "GetDesiredState"
-				defer delete(meta.KeyVals, "function")
-			}
-			desiredState, err = r.GetDesiredState(ctx, obj)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-		}
-
-		var patch *Patch
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			meta, ok := loggermeta.FromContext(ctx)
-			if ok {
-				meta.KeyVals["function"] = "NewDeletePatch"
-				defer delete(meta.KeyVals, "function")
-			}
-			patch, err = r.NewDeletePatch(ctx, obj, currentState, desiredState)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-
-			if patch == nil {
-				return microerror.Maskf(executionFailedError, "patch must not be nil")
-			}
-		}
-
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			createChange, ok := patch.getCreateChange()
-			if ok {
-				meta, ok := loggermeta.FromContext(ctx)
-				if ok {
-					meta.KeyVals["function"] = "ApplyCreateChange"
-					defer delete(meta.KeyVals, "function")
-				}
-				err := r.ApplyCreateChange(ctx, obj, createChange)
-				if err != nil {
-					return microerror.Mask(err)
-				}
-			}
-		}
-
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			deleteChange, ok := patch.getDeleteChange()
-			if ok {
-				meta, ok := loggermeta.FromContext(ctx)
-				if ok {
-					meta.KeyVals["function"] = "ApplyDeleteChange"
-					defer delete(meta.KeyVals, "function")
-				}
-				err := r.ApplyDeleteChange(ctx, obj, deleteChange)
-				if err != nil {
-					return microerror.Mask(err)
-				}
-			}
-		}
-
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			updateChange, ok := patch.getUpdateChange()
-			if ok {
-				meta, ok := loggermeta.FromContext(ctx)
-				if ok {
-					meta.KeyVals["function"] = "ApplyUpdateChange"
-					defer delete(meta.KeyVals, "function")
-				}
-				err := r.ApplyUpdateChange(ctx, obj, updateChange)
-				if err != nil {
-					return microerror.Mask(err)
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 // ProcessEvents takes the event channels created by the operatorkit informer
@@ -516,14 +175,110 @@ func (f *Framework) ProcessEvents(ctx context.Context, deleteChan chan watch.Eve
 	}
 
 	notifier := func(err error, d time.Duration) {
-		f.logger.LogCtx(ctx, "warning", fmt.Sprintf("retrying operator event processing due to error: %#v", microerror.Mask(err)))
+		f.logger.LogCtx(ctx, "function", "ProcessEvents", "level", "warning", "message", "retrying framework event processing due to error", "stack", fmt.Sprintf("%#v", err))
 	}
 
 	err := backoff.RetryNotify(operation, f.backOffFactory(), notifier)
 	if err != nil {
-		f.logger.LogCtx(ctx, "error", fmt.Sprintf("stop operator event processing retries due to too many errors: %#v", microerror.Mask(err)))
+		f.logger.LogCtx(ctx, "function", "ProcessEvents", "level", "error", "message", "stop framework event processing retries due to too many errors", "stack", fmt.Sprintf("%#v", err))
 		os.Exit(1)
 	}
+}
+
+// UpdateFunc executes the framework's ProcessUpdate function.
+func (f *Framework) UpdateFunc(oldObj, newObj interface{}) {
+	obj := newObj
+
+	// DeleteFunc/UpdateFunc is synchronized to make sure only one of them is
+	// executed at a time. DeleteFunc/UpdateFunc is not thread safe. This is
+	// important because the source of truth for an operator are the reconciled
+	// resources. In case we would run the operator logic in parallel, we would
+	// run into race conditions.
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	resourceSet, err := f.resourceRouter.ResourceSet(obj)
+	if IsNoResourceSet(err) {
+		// In case the resource router is not able to find any resource set to
+		// handle the reconciled runtime object, we stop here.
+		return
+	} else if err != nil {
+		f.logger.Log("event", "update", "function", "UpdateFunc", "level", "error", "message", "stop framework reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		return
+	}
+
+	ctx, err := resourceSet.InitCtx(context.Background(), obj)
+	if err != nil {
+		f.logger.LogCtx(ctx, "event", "update", "function", "UpdateFunc", "level", "error", "message", "stop framework reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		return
+	}
+
+	err = ProcessUpdate(ctx, obj, resourceSet.Resources())
+	if err != nil {
+		f.logger.LogCtx(ctx, "event", "update", "function", "UpdateFunc", "level", "error", "message", "stop framework reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		return
+	}
+}
+
+func (f *Framework) bootWithError(ctx context.Context) error {
+	if f.crd != nil {
+		f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "ensuring custom resource definition exists")
+
+		err := f.crdClient.EnsureCreated(ctx, f.crd, f.backOffFactory())
+		if err != nil {
+			return microerror.Mask(err)
+		}
+
+		f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "ensured custom resource definition exists")
+
+		// TODO collect metrics
+	}
+
+	f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "starting list-watch")
+
+	deleteChan, updateChan, errChan := f.informer.Watch(ctx)
+	f.ProcessEvents(ctx, deleteChan, updateChan, errChan)
+
+	return nil
+}
+
+// ProcessDelete is a drop-in for an informer's DeleteFunc. It receives the
+// custom object observed during custom resource watches and anything that
+// implements Resource. ProcessDelete takes care about all necessary
+// reconciliation logic for delete events.
+//
+//     func deleteFunc(obj interface{}) {
+//         err := f.ProcessDelete(obj, resources)
+//         if err != nil {
+//             // error handling here
+//         }
+//     }
+//
+//     newResourceEventHandler := &cache.ResourceEventHandlerFuncs{
+//         DeleteFunc:    deleteFunc,
+//     }
+//
+func ProcessDelete(ctx context.Context, obj interface{}, resources []Resource) error {
+	if len(resources) == 0 {
+		return microerror.Maskf(executionFailedError, "resources must not be empty")
+	}
+
+	defer unsetLoggerCtxValue(ctx, loggerResourceKey)
+
+	for _, r := range resources {
+		ctx = setLoggerCtxValue(ctx, loggerResourceKey, r.Name())
+
+		err := r.EnsureDeleted(ctx, obj)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+
+		if reconciliationcanceledcontext.IsCanceled(ctx) {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 // ProcessUpdate is a drop-in for an informer's UpdateFunc. It receives the new
@@ -548,167 +303,40 @@ func ProcessUpdate(ctx context.Context, obj interface{}, resources []Resource) e
 		return microerror.Maskf(executionFailedError, "resources must not be empty")
 	}
 
+	defer unsetLoggerCtxValue(ctx, loggerResourceKey)
+
 	for _, r := range resources {
-		var err error
+		ctx = setLoggerCtxValue(ctx, loggerResourceKey, r.Name())
 
-		var currentState interface{}
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			meta, ok := loggermeta.FromContext(ctx)
-			if ok {
-				meta.KeyVals["function"] = "GetCurrentState"
-				defer delete(meta.KeyVals, "function")
-			}
-			currentState, err = r.GetCurrentState(ctx, obj)
-			if err != nil {
-				return microerror.Mask(err)
-			}
+		err := r.EnsureCreated(ctx, obj)
+		if err != nil {
+			return microerror.Mask(err)
 		}
 
-		var desiredState interface{}
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			meta, ok := loggermeta.FromContext(ctx)
-			if ok {
-				meta.KeyVals["function"] = "GetDesiredState"
-				defer delete(meta.KeyVals, "function")
-			}
-			desiredState, err = r.GetDesiredState(ctx, obj)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-		}
-
-		var patch *Patch
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			meta, ok := loggermeta.FromContext(ctx)
-			if ok {
-				meta.KeyVals["function"] = "NewUpdatePatch"
-				defer delete(meta.KeyVals, "function")
-			}
-			patch, err = r.NewUpdatePatch(ctx, obj, currentState, desiredState)
-			if err != nil {
-				return microerror.Mask(err)
-			}
-
-			if patch == nil {
-				return microerror.Maskf(executionFailedError, "patch must not be nil")
-			}
-		}
-
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			createState, ok := patch.getCreateChange()
-			if ok {
-				meta, ok := loggermeta.FromContext(ctx)
-				if ok {
-					meta.KeyVals["function"] = "ApplyCreateChange"
-					defer delete(meta.KeyVals, "function")
-				}
-				err := r.ApplyCreateChange(ctx, obj, createState)
-				if err != nil {
-					return microerror.Mask(err)
-				}
-			}
-		}
-
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			deleteState, ok := patch.getDeleteChange()
-			if ok {
-				meta, ok := loggermeta.FromContext(ctx)
-				if ok {
-					meta.KeyVals["function"] = "ApplyDeleteChange"
-					defer delete(meta.KeyVals, "function")
-				}
-				err := r.ApplyDeleteChange(ctx, obj, deleteState)
-				if err != nil {
-					return microerror.Mask(err)
-				}
-			}
-		}
-
-		{
-			if reconciliationcanceledcontext.IsCanceled(ctx) {
-				return nil
-			}
-			if resourcecanceledcontext.IsCanceled(ctx) {
-				ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
-				continue
-			}
-
-			updateState, ok := patch.getUpdateChange()
-			if ok {
-				meta, ok := loggermeta.FromContext(ctx)
-				if ok {
-					meta.KeyVals["function"] = "ApplyUpdateChange"
-					defer delete(meta.KeyVals, "function")
-				}
-				err := r.ApplyUpdateChange(ctx, obj, updateState)
-				if err != nil {
-					return microerror.Mask(err)
-				}
-			}
+		if reconciliationcanceledcontext.IsCanceled(ctx) {
+			return nil
 		}
 	}
 
 	return nil
 }
 
-func (f *Framework) bootWithError(ctx context.Context) error {
-	if f.crd != nil {
-		f.logger.LogCtx(ctx, "debug", "ensuring custom resource definition exists")
-
-		err := f.crdClient.EnsureCreated(ctx, f.crd, f.backOffFactory())
-		if err != nil {
-			return microerror.Mask(err)
-		}
-
-		f.logger.LogCtx(ctx, "debug", "ensured custom resource definition")
-
-		// TODO collect metrics
+func setLoggerCtxValue(ctx context.Context, key, value string) context.Context {
+	m, ok := loggermeta.FromContext(ctx)
+	if !ok {
+		m = loggermeta.New()
 	}
+	m.KeyVals[key] = value
 
-	f.logger.LogCtx(ctx, "debug", "starting list/watch")
+	return loggermeta.NewContext(ctx, m)
+}
 
-	deleteChan, updateChan, errChan := f.informer.Watch(ctx)
-	f.ProcessEvents(ctx, deleteChan, updateChan, errChan)
+func unsetLoggerCtxValue(ctx context.Context, key string) context.Context {
+	m, ok := loggermeta.FromContext(ctx)
+	if !ok {
+		m = loggermeta.New()
+	}
+	delete(m.KeyVals, key)
 
-	return nil
+	return loggermeta.NewContext(ctx, m)
 }
