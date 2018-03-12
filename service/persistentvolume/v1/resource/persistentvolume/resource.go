@@ -7,7 +7,6 @@ import (
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
-	"github.com/giantswarm/operatorkit/framework"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,15 +27,6 @@ const (
 type Config struct {
 	K8sClient kubernetes.Interface
 	Logger    micrologger.Logger
-}
-
-// DefaultConfig provides a default configuration to create a new resource by
-// best effort.
-func DefaultConfig() Config {
-	return Config{
-		K8sClient: nil,
-		Logger:    nil,
-	}
 }
 
 // Resource stores resource configuration.
@@ -64,11 +54,6 @@ func New(config Config) (*Resource, error) {
 // Name returns name of the managed resource.
 func (r *Resource) Name() string {
 	return name
-}
-
-// Underlying returns managed resource object.
-func (r *Resource) Underlying() framework.Resource {
-	return r
 }
 
 // getVolumeAnnotation returns current recycle state annotation.
@@ -144,6 +129,7 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 		Spec: apiv1.PersistentVolumeSpec{
 			Capacity:                      pv.Spec.Capacity,
 			AccessModes:                   pv.Spec.AccessModes,
+			StorageClassName:              pv.Spec.StorageClassName,
 			PersistentVolumeReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
 			PersistentVolumeSource:        pv.Spec.PersistentVolumeSource,
 		},
@@ -159,18 +145,14 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 // which bounds persistent volume from function parameter.
 func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 
-	storageClassAnnotationValue := getVolumeAnnotation(pv, storageClassAnnotation)
-
 	pvc := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
 			Namespace: "kube-system",
-			Annotations: map[string]string{
-				storageClassAnnotation: storageClassAnnotationValue,
-			},
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
-			AccessModes: pv.Spec.AccessModes,
+			AccessModes:      pv.Spec.AccessModes,
+			StorageClassName: &pv.Spec.StorageClassName,
 			Resources: apiv1.ResourceRequirements{
 				Requests: pv.Spec.Capacity,
 			},

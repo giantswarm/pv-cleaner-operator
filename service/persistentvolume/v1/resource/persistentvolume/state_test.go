@@ -77,9 +77,10 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 	var err error
 	var newResource *Resource
 	{
-		resourceConfig := DefaultConfig()
-		resourceConfig.K8sClient = fake.NewSimpleClientset()
-		resourceConfig.Logger = microloggertest.New()
+		resourceConfig := Config{
+			K8sClient: fake.NewSimpleClientset(),
+			Logger:    microloggertest.New(),
+		}
 		newResource, err = New(resourceConfig)
 		if err != nil {
 			t.Fatal("expected", nil, "got", err)
@@ -128,9 +129,10 @@ func Test_Resource_RecyclePersistentVolume_GetDesiredState(t *testing.T) {
 	var err error
 	var newResource *Resource
 	{
-		resourceConfig := DefaultConfig()
-		resourceConfig.K8sClient = fake.NewSimpleClientset()
-		resourceConfig.Logger = microloggertest.New()
+		resourceConfig := Config{
+			K8sClient: fake.NewSimpleClientset(),
+			Logger:    microloggertest.New(),
+		}
 		newResource, err = New(resourceConfig)
 		if err != nil {
 			t.Fatal("expected", nil, "got", err)

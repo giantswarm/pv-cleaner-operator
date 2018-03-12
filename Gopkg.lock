@@ -66,6 +66,19 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/giantswarm/apiextensions"
+  packages = [
+    "pkg/apis/core/v1alpha1",
+    "pkg/apis/provider/v1alpha1",
+    "pkg/clientset/versioned",
+    "pkg/clientset/versioned/scheme",
+    "pkg/clientset/versioned/typed/core/v1alpha1",
+    "pkg/clientset/versioned/typed/provider/v1alpha1"
+  ]
+  revision = "819eb0a6b723acd59776a2dee0d6b75b4fa5fde3"
+
+[[projects]]
+  branch = "master"
   name = "github.com/giantswarm/microendpoint"
   packages = [
     "endpoint/version",
@@ -131,9 +144,12 @@
     "framework/context/resourcecanceledcontext",
     "framework/context/updateallowedcontext",
     "framework/context/updatenecessarycontext",
+    "framework/resource/internal",
+    "framework/resource/metricsresource",
+    "framework/resource/retryresource",
     "informer"
   ]
-  revision = "df96d8eb816b6c5d99897d3c0ea494de6608bf33"
+  revision = "75ba7e3afe272731ffb693bad7920c9bf2baa8d7"
 
 [[projects]]
   branch = "master"
@@ -674,6 +690,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a68efdf262613de9967cc0a74bc74ed63535ecb935cd17bf8d3e73a31e36dfa2"
+  inputs-digest = "a4e571815c014c4e74357d98fe1128fbff8f92578a42e45aff83995b71bcd34a"
   solver-name = "gps-cdcl"
   solver-version = 1

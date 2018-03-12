@@ -2,21 +2,13 @@ package framework
 
 import "context"
 
-// Resource implements the building blocks of any resource business logic being
-// reconciled when observing custom resources. This interface provides
+// CRUDResourceOps provides set of building blocks of a CRUDResource business
+// logic being reconciled when observing custom objects. The interface provides
 // a guideline for an easier way to follow the rather complex intentions of
 // operators in general.
-type Resource interface {
+type CRUDResourceOps interface {
 	// Name returns the resource's name used for identification.
 	Name() string
-	// Underlying returns the underlying resource which is wrapped by the calling
-	// resource. Underlying must always return a non nil resource. Otherwise
-	// proper resource chaining and execution cannot be guaranteed. In case a
-	// resource does not wrap any other resource, Underlying must return the
-	// resource that does not wrap any resource. The returned resource is then the
-	// origin, the underlying resource of the chain. In combination with Name,
-	// Underlying can be used for proper identification.
-	Underlying() Resource
 
 	// GetCurrentState receives the custom object observed during custom
 	// resource watches. Its purpose is to return the current state of the
