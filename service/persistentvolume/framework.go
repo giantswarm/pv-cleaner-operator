@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/giantswarm/aws-operator/service/awsconfig/v1"
+	"github.com/giantswarm/pv-cleaner-operator/service/persistentvolume/v1"
 )
 
 const cleanupLabel = "persistentvolume.giantswarm.io/cleanup-on-release"
