@@ -99,8 +99,9 @@ func New(config Config) (*Service, error) {
 	var persistentVolumeFramework *framework.Framework
 	{
 		c := persistentvolume.FrameworkConfig{
-			K8sClient: k8sClient,
-			Logger:    config.Logger,
+			K8sClient:   k8sClient,
+			Logger:      config.Logger,
+			ProjectName: config.Name,
 		}
 
 		persistentVolumeFramework, err = persistentvolume.NewFramework(c)

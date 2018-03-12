@@ -129,6 +129,7 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 		Spec: apiv1.PersistentVolumeSpec{
 			Capacity:                      pv.Spec.Capacity,
 			AccessModes:                   pv.Spec.AccessModes,
+			StorageClassName:              pv.Spec.StorageClassName,
 			PersistentVolumeReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
 			PersistentVolumeSource:        pv.Spec.PersistentVolumeSource,
 		},
@@ -144,18 +145,14 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 // which bounds persistent volume from function parameter.
 func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 
-	storageClassAnnotationValue := getVolumeAnnotation(pv, storageClassAnnotation)
-
 	pvc := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
 			Namespace: "kube-system",
-			Annotations: map[string]string{
-				storageClassAnnotation: storageClassAnnotationValue,
-			},
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
-			AccessModes: pv.Spec.AccessModes,
+			AccessModes:      pv.Spec.AccessModes,
+			StorageClassName: &pv.Spec.StorageClassName,
 			Resources: apiv1.ResourceRequirements{
 				Requests: pv.Spec.Capacity,
 			},

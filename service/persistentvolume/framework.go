@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	gsclient "github.com/giantswarm/apiextensions/pkg/clientset/versioned"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/framework"
@@ -18,7 +17,6 @@ import (
 const cleanupLabel = "persistentvolume.giantswarm.io/cleanup-on-release"
 
 type FrameworkConfig struct {
-	G8sClient gsclient.Interface
 	K8sClient kubernetes.Interface
 	Logger    micrologger.Logger
 
@@ -35,9 +33,6 @@ type Framework struct {
 func NewFramework(config FrameworkConfig) (*framework.Framework, error) {
 	var err error
 
-	if config.G8sClient == nil {
-		return nil, microerror.Maskf(invalidConfigError, "config.G8sClient must not be empty")
-	}
 	if config.K8sClient == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.K8sClient must not be empty")
 	}
