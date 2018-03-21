@@ -6,10 +6,7 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/microkit/command"
 	microserver "github.com/giantswarm/microkit/server"
-	"github.com/giantswarm/microkit/transaction"
 	"github.com/giantswarm/micrologger"
-	"github.com/giantswarm/microstorage"
-	"github.com/giantswarm/microstorage/memory"
 	"github.com/spf13/viper"
 
 	"github.com/giantswarm/pv-cleaner-operator/flag"
@@ -48,8 +45,7 @@ func mainWithError() error {
 	// Create a new logger which is used by all packages.
 	var newLogger micrologger.Logger
 	{
-		loggerConfig := micrologger.DefaultConfig()
-		newLogger, err = micrologger.New(loggerConfig)
+		newLogger, err = micrologger.New(micrologger.Config{})
 		if err != nil {
 			return microerror.Maskf(err, "micrologger.New")
 		}
@@ -61,7 +57,7 @@ func mainWithError() error {
 		// Create a new custom service which implements business logic.
 		var newService *service.Service
 		{
-			serviceConfig := service.DefaultConfig()
+			serviceConfig := service.Config{}
 
 			serviceConfig.Flag = f
 			serviceConfig.Logger = newLogger
@@ -79,35 +75,14 @@ func mainWithError() error {
 			go newService.Boot()
 		}
 
-		var newStorage microstorage.Storage
-		{
-			storageConfig := memory.DefaultConfig()
-
-			newStorage, err = memory.New(storageConfig)
-			panicOnErr(err)
-		}
-
-		var newTransactionResponder transaction.Responder
-		{
-			transactionResponderConfig := transaction.DefaultResponderConfig()
-
-			transactionResponderConfig.Logger = newLogger
-			transactionResponderConfig.Storage = newStorage
-
-			newTransactionResponder, err = transaction.NewResponder(transactionResponderConfig)
-			panicOnErr(err)
-		}
-
 		// Create a new custom server which bundles our endpoints.
 		var newServer microserver.Server
 		{
-			serverConfig := server.DefaultConfig()
-
-			serverConfig.MicroServerConfig.Logger = newLogger
-			serverConfig.MicroServerConfig.TransactionResponder = newTransactionResponder
-			serverConfig.MicroServerConfig.ServiceName = name
-			serverConfig.MicroServerConfig.Viper = v
-			serverConfig.Service = newService
+			serverConfig := server.Config{
+				Logger:  newLogger,
+				Service: newService,
+				Viper:   v,
+			}
 
 			newServer, err = server.New(serverConfig)
 			if err != nil {
@@ -121,17 +96,17 @@ func mainWithError() error {
 	// Create a new microkit command which manages our custom microservice.
 	var newCommand command.Command
 	{
-		commandConfig := command.DefaultConfig()
+		c := command.Config{
+			Logger:        newLogger,
+			ServerFactory: newServerFactory,
 
-		commandConfig.Logger = newLogger
-		commandConfig.ServerFactory = newServerFactory
+			Description: description,
+			GitCommit:   gitCommit,
+			Name:        name,
+			Source:      source,
+		}
 
-		commandConfig.Description = description
-		commandConfig.GitCommit = gitCommit
-		commandConfig.Name = name
-		commandConfig.Source = source
-
-		newCommand, err = command.New(commandConfig)
+		newCommand, err = command.New(c)
 		if err != nil {
 			return microerror.Mask(err)
 		}

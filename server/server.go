@@ -10,7 +10,7 @@ import (
 	"github.com/giantswarm/microerror"
 	microserver "github.com/giantswarm/microkit/server"
 	"github.com/giantswarm/micrologger"
-	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/spf13/viper"
 
 	"github.com/giantswarm/pv-cleaner-operator/server/endpoint"
 	"github.com/giantswarm/pv-cleaner-operator/service"
@@ -18,23 +18,11 @@ import (
 
 // Config represents the configuration used to create a new server object.
 type Config struct {
-	// Dependencies.
+	Logger  micrologger.Logger
 	Service *service.Service
+	Viper   *viper.Viper
 
-	// Settings.
-	MicroServerConfig microserver.Config
-}
-
-// DefaultConfig provides a default configuration to create a new server object
-// by best effort.
-func DefaultConfig() Config {
-	return Config{
-		// Dependencies.
-		Service: nil,
-
-		// Settings.
-		MicroServerConfig: microserver.DefaultConfig(),
-	}
+	ProjectName string
 }
 
 // New creates a new configured server object.
@@ -43,31 +31,32 @@ func New(config Config) (microserver.Server, error) {
 
 	var endpointCollection *endpoint.Endpoint
 	{
-		endpointConfig := endpoint.DefaultConfig()
-		endpointConfig.Logger = config.MicroServerConfig.Logger
-		endpointConfig.Service = config.Service
-		endpointCollection, err = endpoint.New(endpointConfig)
+		c := endpoint.Config{}
+		c.Logger = config.Logger
+		c.Service = config.Service
+
+		endpointCollection, err = endpoint.New(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
 	}
 
 	newServer := &server{
-		// Dependencies.
-		logger: config.MicroServerConfig.Logger,
+		logger: config.Logger,
 
-		// Internals.
-		bootOnce:     sync.Once{},
-		config:       config.MicroServerConfig,
-		serviceName:  config.MicroServerConfig.ServiceName,
+		bootOnce: sync.Once{},
+		config: microserver.Config{
+			Logger:      config.Logger,
+			ServiceName: config.ProjectName,
+			Viper:       config.Viper,
+
+			Endpoints: []microserver.Endpoint{
+				endpointCollection.Version,
+			},
+			ErrorEncoder: errorEncoder,
+		},
 		shutdownOnce: sync.Once{},
 	}
-
-	// Apply internals to the micro server config.
-	newServer.config.Endpoints = []microserver.Endpoint{
-		endpointCollection.Version,
-	}
-	newServer.config.ErrorEncoder = newServer.newErrorEncoder()
 
 	return newServer, nil
 }
@@ -101,13 +90,11 @@ func (s *server) Shutdown() {
 	})
 }
 
-func (s *server) newErrorEncoder() kithttp.ErrorEncoder {
-	return func(ctx context.Context, err error, w http.ResponseWriter) {
-		rErr := err.(microserver.ResponseError)
-		uErr := rErr.Underlying()
+func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
+	rErr := err.(microserver.ResponseError)
+	uErr := rErr.Underlying()
 
-		rErr.SetCode(microserver.CodeInternalError)
-		rErr.SetMessage(uErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	rErr.SetCode(microserver.CodeInternalError)
+	rErr.SetMessage(uErr.Error())
+	w.WriteHeader(http.StatusInternalServerError)
 }

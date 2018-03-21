@@ -35,24 +35,6 @@ type Config struct {
 	Source      string
 }
 
-// DefaultConfig provides a default configuration to create a new service by
-// best effort.
-func DefaultConfig() Config {
-	return Config{
-		// Dependencies.
-		Logger: nil,
-
-		// Settings.
-		Flag:  nil,
-		Viper: nil,
-
-		Description: "",
-		GitCommit:   "",
-		Name:        "",
-		Source:      "",
-	}
-}
-
 // New creates a new configured service object.
 func New(config Config) (*Service, error) {
 	// Dependencies.
@@ -113,7 +95,7 @@ func New(config Config) (*Service, error) {
 
 	var versionService *version.Service
 	{
-		versionConfig := version.DefaultConfig()
+		versionConfig := version.Config{}
 		versionConfig.Description = config.Description
 		versionConfig.GitCommit = config.GitCommit
 		versionConfig.Name = config.Name
