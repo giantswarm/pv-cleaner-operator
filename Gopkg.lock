@@ -103,7 +103,7 @@
   revision = "2aaea11da0707ebb7f9fbabb07028a37b00efc16"
 
 [[projects]]
-  branch = "bump-k8s-libs"
+  branch = "master"
   name = "github.com/giantswarm/operatorkit"
   packages = [
     "client/k8scrdclient",
@@ -118,7 +118,7 @@
     "framework/resource/retryresource",
     "informer"
   ]
-  revision = "ab009f84c1822c7d8271e49883f77d09d22dad00"
+  revision = "e785d24fd81b018fa0ebe1fa7874e306a413461a"
 
 [[projects]]
   branch = "master"
@@ -685,6 +685,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5b38835823ee7d4e0c04e34d7b0a24bd14a6f3ccf371c59207dce6c665ee5de7"
+  inputs-digest = "c8417494bace3d3644d025fe473371418e0c3e32c53d12c4eaec9fc61818bf91"
   solver-name = "gps-cdcl"
   solver-version = 1

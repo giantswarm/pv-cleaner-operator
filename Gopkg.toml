@@ -38,7 +38,7 @@
   branch = "master"
 
 [[constraint]]
-  branch = "bump-k8s-libs"
+  branch = "master"
   name = "github.com/giantswarm/operatorkit"
 
 [[constraint]]
