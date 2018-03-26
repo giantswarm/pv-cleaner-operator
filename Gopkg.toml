@@ -19,6 +19,8 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+
+
 [[constraint]]
   name = "github.com/giantswarm/microendpoint"
   branch = "master"
@@ -36,12 +38,14 @@
   branch = "master"
 
 [[constraint]]
-  name = "github.com/giantswarm/operatorkit"
   branch = "master"
+  name = "github.com/giantswarm/operatorkit"
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.8.5"
+  version = "kubernetes-1.9.3"
+
+
 
 [prune]
   go-tests = true
