@@ -144,7 +144,7 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 // newPvc returns k8s PersistentVolumeClaim object,
 // which bounds persistent volume from function parameter.
 func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
-
+	storageClass := "g8s-storage"
 	pvc := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
@@ -152,7 +152,7 @@ func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
 			AccessModes:      pv.Spec.AccessModes,
-			StorageClassName: &pv.Spec.StorageClassName,
+			StorageClassName: &storageClass,
 			Resources: apiv1.ResourceRequirements{
 				Requests: pv.Spec.Capacity,
 			},
