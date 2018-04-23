@@ -93,6 +93,9 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 			Informer:       newInformer,
 			Logger:         config.Logger,
 			ResourceRouter: resourceRouter,
+			RESTClient:     config.K8sClient.CoreV1().RESTClient(),
+
+			Name: config.ProjectName,
 		}
 
 		f, err = controller.New(c)
