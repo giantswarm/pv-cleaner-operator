@@ -87,7 +87,7 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 		}
 	}
 
-	var f *controller.Controller
+	var operatorkitController *controller.Controller
 	{
 		c := controller.Config{
 			Informer:       newInformer,
@@ -98,14 +98,14 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 			Name: config.ProjectName,
 		}
 
-		f, err = controller.New(c)
+		operatorkitController, err = controller.New(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
 	}
 
 	p := &PersistentVolume{
-		Controller: f,
+		Controller: operatorkitController,
 	}
 
 	return p, nil
