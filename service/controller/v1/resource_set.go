@@ -9,7 +9,7 @@ import (
 	"github.com/giantswarm/operatorkit/framework/resource/retryresource"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/giantswarm/pv-cleaner-operator/service/persistentvolume/v1/resource/persistentvolume"
+	"github.com/giantswarm/pv-cleaner-operator/service/controller/v1/resource/persistentvolume"
 )
 
 const (

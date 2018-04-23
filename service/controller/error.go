@@ -1,4 +1,4 @@
-package persistentvolume
+package controller
 
 import "github.com/giantswarm/microerror"
 
