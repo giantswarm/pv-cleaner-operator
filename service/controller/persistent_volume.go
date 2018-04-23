@@ -5,7 +5,7 @@ import (
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
-	"github.com/giantswarm/operatorkit/framework"
+	"github.com/giantswarm/operatorkit/controller"
 	"github.com/giantswarm/operatorkit/informer"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -23,7 +23,7 @@ type PersistentVolumeConfig struct {
 }
 
 type PersistentVolume struct {
-	*framework.Framework
+	*controller.Controller
 }
 
 func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, error) {
@@ -56,7 +56,7 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 		}
 	}
 
-	var v1ResourceSet *framework.ResourceSet
+	var v1ResourceSet *controller.ResourceSet
 	{
 		c := v1.ResourceSetConfig{
 			K8sClient: config.K8sClient,
@@ -71,38 +71,41 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 		}
 	}
 
-	var resourceRouter *framework.ResourceRouter
+	var resourceRouter *controller.ResourceRouter
 	{
-		c := framework.ResourceRouterConfig{
+		c := controller.ResourceRouterConfig{
 			Logger: config.Logger,
 
-			ResourceSets: []*framework.ResourceSet{
+			ResourceSets: []*controller.ResourceSet{
 				v1ResourceSet,
 			},
 		}
 
-		resourceRouter, err = framework.NewResourceRouter(c)
+		resourceRouter, err = controller.NewResourceRouter(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
 	}
 
-	var f *framework.Framework
+	var operatorkitController *controller.Controller
 	{
-		c := framework.Config{
+		c := controller.Config{
 			Informer:       newInformer,
 			Logger:         config.Logger,
 			ResourceRouter: resourceRouter,
+			RESTClient:     config.K8sClient.CoreV1().RESTClient(),
+
+			Name: config.ProjectName,
 		}
 
-		f, err = framework.New(c)
+		operatorkitController, err = controller.New(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
 	}
 
 	p := &PersistentVolume{
-		Framework: f,
+		Controller: operatorkitController,
 	}
 
 	return p, nil

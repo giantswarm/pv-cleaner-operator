@@ -6,20 +6,20 @@ import (
 	"reflect"
 
 	"github.com/giantswarm/microerror"
-	"github.com/giantswarm/operatorkit/framework"
+	"github.com/giantswarm/operatorkit/controller"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewUpdatePatch returns patch to apply on updated persistent volume.
-func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
+func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*controller.Patch, error) {
 
 	updateState, err := r.newUpdateChange(ctx, obj, currentState, desiredState)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	patch := framework.NewPatch()
+	patch := controller.NewPatch()
 	patch.SetUpdateChange(updateState)
 
 	return patch, nil
