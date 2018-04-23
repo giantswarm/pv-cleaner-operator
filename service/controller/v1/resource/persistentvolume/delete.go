@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/giantswarm/microerror"
-	"github.com/giantswarm/operatorkit/framework"
+	"github.com/giantswarm/operatorkit/controller"
 )
 
 // NewDeletePatch returns patch to apply on deleted persistent volume.
-func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
+func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*controller.Patch, error) {
 
-	patch := framework.NewPatch()
+	patch := controller.NewPatch()
 	patch.SetDeleteChange(currentState)
 
 	return patch, nil
