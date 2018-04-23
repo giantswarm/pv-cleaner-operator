@@ -1,8 +1,7 @@
-package persistentvolume
+package controller
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
@@ -11,26 +10,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/giantswarm/pv-cleaner-operator/service/persistentvolume/v1"
+	"github.com/giantswarm/pv-cleaner-operator/service/controller/v1"
 )
 
 const cleanupLabel = "persistentvolume.giantswarm.io/cleanup-on-release"
 
-type FrameworkConfig struct {
+type PersistentVolumeConfig struct {
 	K8sClient kubernetes.Interface
 	Logger    micrologger.Logger
 
 	ProjectName string
 }
 
-type Framework struct {
-	logger micrologger.Logger
-
-	framework *framework.Framework
-	bootOnce  sync.Once
+type PersistentVolume struct {
+	*framework.Framework
 }
 
-func NewFramework(config FrameworkConfig) (*framework.Framework, error) {
+func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, error) {
 	var err error
 
 	if config.K8sClient == nil {
@@ -105,5 +101,9 @@ func NewFramework(config FrameworkConfig) (*framework.Framework, error) {
 		}
 	}
 
-	return f, nil
+	p := &PersistentVolume{
+		Framework: f,
+	}
+
+	return p, nil
 }

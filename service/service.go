@@ -8,23 +8,17 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/client/k8srestconfig"
-	"github.com/giantswarm/operatorkit/framework"
 	"github.com/spf13/viper"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	"github.com/giantswarm/pv-cleaner-operator/flag"
-	"github.com/giantswarm/pv-cleaner-operator/service/persistentvolume"
+	"github.com/giantswarm/pv-cleaner-operator/service/controller"
 )
 
-// Config represents the configuration used to create a new service.
 type Config struct {
-	// Dependencies.
-
 	Logger micrologger.Logger
-
-	// Settings.
 
 	Flag  *flag.Flag
 	Viper *viper.Viper
@@ -35,15 +29,19 @@ type Config struct {
 	Source      string
 }
 
-// New creates a new configured service object.
+type Service struct {
+	Version *version.Service
+
+	bootOnce                   sync.Once
+	persistentVolumeController *controller.PersistentVolume
+}
+
 func New(config Config) (*Service, error) {
-	// Dependencies.
 	if config.Logger == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
 	}
 	config.Logger.Log("debug", fmt.Sprintf("creating pv-cleaner-operator gitCommit:%s", config.GitCommit))
 
-	// Settings.
 	if config.Flag == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Flag must not be empty")
 	}
@@ -78,15 +76,15 @@ func New(config Config) (*Service, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	var persistentVolumeFramework *framework.Framework
+	var persistentVolumeController *controller.PersistentVolume
 	{
-		c := persistentvolume.FrameworkConfig{
+		c := controller.PersistentVolumeConfig{
 			K8sClient:   k8sClient,
 			Logger:      config.Logger,
 			ProjectName: config.Name,
 		}
 
-		persistentVolumeFramework, err = persistentvolume.NewFramework(c)
+		persistentVolumeController, err = controller.NewPersistentVolume(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
@@ -108,26 +106,17 @@ func New(config Config) (*Service, error) {
 	}
 
 	newService := &Service{
-		// Dependencies.
-		PersistentVolumeFramework: persistentVolumeFramework,
-		Version:                   versionService,
+		Version: versionService,
 
-		// Internals
-		bootOnce: sync.Once{},
+		bootOnce:                   sync.Once{},
+		persistentVolumeController: persistentVolumeController,
 	}
 
 	return newService, nil
 }
 
-type Service struct {
-	PersistentVolumeFramework *framework.Framework
-	Version                   *version.Service
-
-	bootOnce sync.Once
-}
-
 func (s *Service) Boot() {
 	s.bootOnce.Do(func() {
-		s.PersistentVolumeFramework.Boot()
+		s.persistentVolumeController.Boot()
 	})
 }
