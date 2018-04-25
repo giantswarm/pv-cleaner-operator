@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app: pv-cleaner-operator
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       volumes:
       - name: pv-cleaner-operator-configmap
