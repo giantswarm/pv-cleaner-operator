@@ -43,11 +43,13 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 	var newInformer *informer.Informer
 	{
 		c := informer.Config{
-			ResyncPeriod: informer.DefaultResyncPeriod,
-			Watcher:      config.K8sClient.Core().PersistentVolumes(),
+			Logger:  config.Logger,
+			Watcher: config.K8sClient.Core().PersistentVolumes(),
+
 			ListOptions: metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", cleanupLabel, "true"),
 			},
+			ResyncPeriod: informer.DefaultResyncPeriod,
 		}
 
 		newInformer, err = informer.New(c)
