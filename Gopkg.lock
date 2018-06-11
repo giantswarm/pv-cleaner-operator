@@ -504,6 +504,7 @@
   version = "v2.2.1"
 
 [[projects]]
+  branch = "release-1.10"
   name = "k8s.io/api"
   packages = [
     "admissionregistration/v1alpha1",
@@ -535,8 +536,7 @@
     "storage/v1alpha1",
     "storage/v1beta1"
   ]
-  revision = "acf347b865f29325eb61f4cd2df11e86e073a5ee"
-  version = "kubernetes-1.9.3"
+  revision = "8b7507fac302640dd5f1efbf9643199952cc58db"
 
 [[projects]]
   name = "k8s.io/apiextensions-apiserver"
@@ -686,6 +686,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "414147b080ba35cdea688c03cc4c30328a758c63fa60726f492d2daddd2487d1"
+  inputs-digest = "f8382458bcf3037520d9cc156119e31dc3d64bc3a7320f43e9bf37859fd7386e"
   solver-name = "gps-cdcl"
   solver-version = 1
