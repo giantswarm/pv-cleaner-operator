@@ -13,6 +13,7 @@ import (
 	"github.com/giantswarm/micrologger/loggermeta"
 	"github.com/prometheus/client_golang/prometheus"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
@@ -32,18 +33,16 @@ type Config struct {
 	CRDClient *k8scrdclient.CRDClient
 	Informer  informer.Interface
 	Logger    micrologger.Logger
-	// ResourceRouter determines which resource set to use on reconciliation based
-	// on its own implementation. A resource router is to decide which resource
-	// set to execute. A resource set provides a specific function to initialize
-	// the request context and a list of resources to be executed for a
-	// reconciliation loop. That way each runtime object being reconciled is
-	// executed against a desired list of resources. Since runtime objects may
-	// differ in version and/or structure the resource router enables custom
-	// inspection before each reconciliation loop. That way the complete list of
-	// resources being executed for the received runtime object can be versioned
-	// and different resources can be executed depending on the runtime object
-	// being reconciled.
-	ResourceRouter *ResourceRouter
+	// ResourceSets is a list of resource sets. A resource set provides a specific
+	// function to initialize the request context and a list of resources to be
+	// executed for a reconciliation loop. That way each runtime object being
+	// reconciled is executed against a desired list of resources. Since runtime
+	// objects may differ in version and/or structure the resource router enables
+	// custom inspection before each reconciliation loop. That way the complete
+	// list of resources being executed for the received runtime object can be
+	// versioned and different resources can be executed depending on the runtime
+	// object being reconciled.
+	ResourceSets []*ResourceSet
 	// RESTClient needs to be configured with a serializer capable of serializing
 	// and deserializing the object which is watched by the informer. Otherwise
 	// deserialization will fail when trying to add a finalizer.
@@ -66,12 +65,12 @@ type Config struct {
 }
 
 type Controller struct {
-	crd            *apiextensionsv1beta1.CustomResourceDefinition
-	crdClient      *k8scrdclient.CRDClient
-	informer       informer.Interface
-	restClient     rest.Interface
-	logger         micrologger.Logger
-	resourceRouter *ResourceRouter
+	crd          *apiextensionsv1beta1.CustomResourceDefinition
+	crdClient    *k8scrdclient.CRDClient
+	informer     informer.Interface
+	restClient   rest.Interface
+	logger       micrologger.Logger
+	resourceSets []*ResourceSet
 
 	bootOnce       sync.Once
 	errorCollector chan error
@@ -95,8 +94,8 @@ func New(config Config) (*Controller, error) {
 	if config.Logger == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
 	}
-	if config.ResourceRouter == nil {
-		return nil, microerror.Maskf(invalidConfigError, "config.ResourceRouter must not be empty")
+	if len(config.ResourceSets) == 0 {
+		return nil, microerror.Maskf(invalidConfigError, "config.ResourceSets must not be empty")
 	}
 
 	if config.BackOffFactory == nil {
@@ -106,13 +105,13 @@ func New(config Config) (*Controller, error) {
 		return nil, microerror.Maskf(invalidConfigError, "config.Name must not be empty")
 	}
 
-	f := &Controller{
-		crd:            config.CRD,
-		crdClient:      config.CRDClient,
-		informer:       config.Informer,
-		restClient:     config.RESTClient,
-		logger:         config.Logger,
-		resourceRouter: config.ResourceRouter,
+	c := &Controller{
+		crd:          config.CRD,
+		crdClient:    config.CRDClient,
+		informer:     config.Informer,
+		restClient:   config.RESTClient,
+		logger:       config.Logger,
+		resourceSets: config.ResourceSets,
 
 		bootOnce:       sync.Once{},
 		errorCollector: make(chan error, 1),
@@ -122,15 +121,15 @@ func New(config Config) (*Controller, error) {
 		name:           config.Name,
 	}
 
-	return f, nil
+	return c, nil
 }
 
-func (f *Controller) Boot() {
+func (c *Controller) Boot() {
 	ctx := context.TODO()
 
-	f.bootOnce.Do(func() {
+	c.bootOnce.Do(func() {
 		operation := func() error {
-			err := f.bootWithError(ctx)
+			err := c.bootWithError(ctx)
 			if err != nil {
 				return microerror.Mask(err)
 			}
@@ -139,81 +138,109 @@ func (f *Controller) Boot() {
 		}
 
 		notifier := func(err error, d time.Duration) {
-			f.logger.LogCtx(ctx, "function", "Boot", "level", "warning", "message", "retrying controller boot due to error", "stack", fmt.Sprintf("%#v", err))
+			c.logger.LogCtx(ctx, "level", "warning", "message", "retrying controller boot due to error", "stack", fmt.Sprintf("%#v", err))
 		}
 
-		err := backoff.RetryNotify(operation, f.backOffFactory(), notifier)
+		err := backoff.RetryNotify(operation, c.backOffFactory(), notifier)
 		if err != nil {
-			f.logger.LogCtx(ctx, "function", "Boot", "level", "error", "message", "stop controller boot retries due to too many errors", "stack", fmt.Sprintf("%#v", err))
+			c.logger.LogCtx(ctx, "level", "error", "message", "stop controller boot retries due to too many errors", "stack", fmt.Sprintf("%#v", err))
 			os.Exit(1)
 		}
 	})
 }
 
 // DeleteFunc executes the controller's ProcessDelete function.
-func (f *Controller) DeleteFunc(obj interface{}) {
+func (c *Controller) DeleteFunc(obj interface{}) {
 	// DeleteFunc/UpdateFunc is synchronized to make sure only one of them is
 	// executed at a time. DeleteFunc/UpdateFunc is not thread safe. This is
 	// important because the source of truth for an operator are the reconciled
 	// resources. In case we would run the operator logic in parallel, we would
 	// run into race conditions.
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
-	resourceSet, err := f.resourceRouter.ResourceSet(obj)
+	resourceSet, err := c.resourceSet(obj)
 	if IsNoResourceSet(err) {
 		// In case the resource router is not able to find any resource set to
-		// handle the reconciled runtime object, we stop here.
+		// handle the reconciled runtime object, we stop here. Note that we just
+		// remove the finalizer regardless because at this point there will never be
+		// a chance to remove it otherwhise because nobody wanted to handle this
+		// runtime object anyway.
+
+		c.logger.Log("level", "debug", "message", "removing finalizer from runtime object")
+
+		err = c.removeFinalizer(obj)
+		if err != nil {
+			c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+			return
+		}
+
+		c.logger.Log("level", "debug", "message", "removed finalizer from runtime object")
+
 		return
 	} else if err != nil {
-		f.logger.Log("event", "delete", "function", "DeleteFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
 	ctx, err := resourceSet.InitCtx(context.Background(), obj)
 	if err != nil {
-		f.logger.Log("event", "delete", "function", "DeleteFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
+	}
+
+	{
+		meta, ok := loggermeta.FromContext(ctx)
+		if !ok {
+			meta = loggermeta.New()
+		}
+		meta.KeyVals["event"] = "delete"
+
+		ctx = loggermeta.NewContext(ctx, meta)
 	}
 
 	err = ProcessDelete(ctx, obj, resourceSet.Resources())
 	if err != nil {
-		f.errorCollector <- err
-		f.logger.LogCtx(ctx, "event", "delete", "function", "DeleteFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.errorCollector <- err
+		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
 	if !finalizerskeptcontext.IsKept(ctx) {
-		f.logger.LogCtx(ctx, "event", "delete", "function", "DeleteFunc", "level", "debug", "message", "removing finalizer from runtime object")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "removing finalizer from runtime object")
 
-		err = f.removeFinalizer(ctx, obj)
+		err = c.removeFinalizer(obj)
 		if err != nil {
-			f.logger.LogCtx(ctx, "event", "delete", "function", "DeleteFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+			c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 			return
 		}
 
-		f.logger.LogCtx(ctx, "event", "delete", "function", "DeleteFunc", "level", "debug", "message", "removed finalizer from runtime object")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "removed finalizer from runtime object")
 	} else {
-		f.logger.LogCtx(ctx, "event", "delete", "function", "DeleteFunc", "level", "debug", "message", "not removing finalizer from runtime object due to request of keeping it")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "not removing finalizer from runtime object due to request of keeping it")
 	}
 }
 
 // ProcessEvents takes the event channels created by the operatorkit informer
 // and executes the controller's event functions accordingly.
-func (f *Controller) ProcessEvents(ctx context.Context, deleteChan chan watch.Event, updateChan chan watch.Event, errChan chan error) {
+func (c *Controller) ProcessEvents(ctx context.Context, deleteChan chan watch.Event, updateChan chan watch.Event, errChan chan error) {
 	operation := func() error {
 		for {
 			select {
 			case e := <-deleteChan:
 				t := prometheus.NewTimer(controllerHistogram.WithLabelValues("delete"))
-				f.DeleteFunc(e.Object)
+				c.DeleteFunc(e.Object)
 				t.ObserveDuration()
 			case e := <-updateChan:
 				t := prometheus.NewTimer(controllerHistogram.WithLabelValues("update"))
-				f.UpdateFunc(nil, e.Object)
+				c.UpdateFunc(nil, e.Object)
 				t.ObserveDuration()
 			case err := <-errChan:
-				return microerror.Mask(err)
+				if IsStatusForbidden(err) {
+					return microerror.Maskf(statusForbiddenError, "controller might be missing RBAC rule for %s CRD", c.crd.Name)
+				} else if err != nil {
+					return microerror.Mask(err)
+				}
 			case <-ctx.Done():
 				return nil
 			}
@@ -221,18 +248,18 @@ func (f *Controller) ProcessEvents(ctx context.Context, deleteChan chan watch.Ev
 	}
 
 	notifier := func(err error, d time.Duration) {
-		f.logger.LogCtx(ctx, "function", "ProcessEvents", "level", "warning", "message", "retrying event processing due to error", "stack", fmt.Sprintf("%#v", err))
+		c.logger.LogCtx(ctx, "level", "warning", "message", "retrying event processing due to error", "stack", fmt.Sprintf("%#v", err))
 	}
 
-	err := backoff.RetryNotify(operation, f.backOffFactory(), notifier)
+	err := backoff.RetryNotify(operation, c.backOffFactory(), notifier)
 	if err != nil {
-		f.logger.LogCtx(ctx, "function", "ProcessEvents", "level", "error", "message", "stop event processing retries due to too many errors", "stack", fmt.Sprintf("%#v", err))
+		c.logger.LogCtx(ctx, "level", "error", "message", "stop event processing retries due to too many errors", "stack", fmt.Sprintf("%#v", err))
 		os.Exit(1)
 	}
 }
 
 // UpdateFunc executes the controller's ProcessUpdate function.
-func (f *Controller) UpdateFunc(oldObj, newObj interface{}) {
+func (c *Controller) UpdateFunc(oldObj, newObj interface{}) {
 	obj := newObj
 
 	// DeleteFunc/UpdateFunc is synchronized to make sure only one of them is
@@ -240,74 +267,86 @@ func (f *Controller) UpdateFunc(oldObj, newObj interface{}) {
 	// important because the source of truth for an operator are the reconciled
 	// resources. In case we would run the operator logic in parallel, we would
 	// run into race conditions.
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
-	resourceSet, err := f.resourceRouter.ResourceSet(obj)
+	resourceSet, err := c.resourceSet(obj)
 	if IsNoResourceSet(err) {
 		// In case the resource router is not able to find any resource set to
 		// handle the reconciled runtime object, we stop here.
 		return
 	} else if err != nil {
-		f.logger.Log("event", "update", "function", "UpdateFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
 	ctx, err := resourceSet.InitCtx(context.Background(), obj)
 	if err != nil {
-		f.logger.Log("event", "update", "function", "UpdateFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
-	ok, err := f.addFinalizer(obj)
-	if err != nil {
-		f.logger.LogCtx(ctx, "event", "update", "function", "UpdateFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+	{
+		meta, ok := loggermeta.FromContext(ctx)
+		if !ok {
+			meta = loggermeta.New()
+		}
+		meta.KeyVals["event"] = "update"
+
+		ctx = loggermeta.NewContext(ctx, meta)
+	}
+
+	ok, err := c.addFinalizer(obj)
+	if IsInvalidRESTClient(err) {
+		panic("invalid REST client configured for controller")
+	} else if err != nil {
+		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 	if ok {
 		// A finalizer was added, this causes a new update event, so we stop
 		// reconciling here and will pick up the new event.
-		f.logger.LogCtx(ctx, "event", "update", "function", "UpdateFunc", "level", "debug", "message", "stop reconciliation due to finalizer added")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "stop reconciliation due to finalizer added")
 		return
 	}
 
 	err = ProcessUpdate(ctx, obj, resourceSet.Resources())
 	if err != nil {
-		f.errorCollector <- err
-		f.logger.LogCtx(ctx, "event", "update", "function", "UpdateFunc", "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.errorCollector <- err
+		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 }
 
-func (f *Controller) bootWithError(ctx context.Context) error {
-	if f.crd != nil {
-		f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "ensuring custom resource definition exists")
+func (c *Controller) bootWithError(ctx context.Context) error {
+	if c.crd != nil {
+		c.logger.LogCtx(ctx, "level", "debug", "message", "ensuring custom resource definition exists")
 
-		err := f.crdClient.EnsureCreated(ctx, f.crd, f.backOffFactory())
+		err := c.crdClient.EnsureCreated(ctx, c.crd, c.backOffFactory())
 		if err != nil {
 			return microerror.Mask(err)
 		}
 
-		f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "ensured custom resource definition exists")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "ensured custom resource definition exists")
 	}
 
 	{
-		f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "booting informer")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "booting informer")
 
-		err := f.informer.Boot(ctx)
+		err := c.informer.Boot(ctx)
 		if err != nil {
 			return microerror.Mask(err)
 		}
 
-		f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "booted informer")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "booted informer")
 	}
 
 	go func() {
-		resetWait := f.informer.ResyncPeriod() * 2
+		resetWait := c.informer.ResyncPeriod() * 3
 
 		for {
 			select {
-			case <-f.errorCollector:
+			case <-c.errorCollector:
 				controllerErrorGauge.Inc()
 			case <-time.After(resetWait):
 				controllerErrorGauge.Set(0)
@@ -315,12 +354,43 @@ func (f *Controller) bootWithError(ctx context.Context) error {
 		}
 	}()
 
-	f.logger.LogCtx(ctx, "function", "bootWithError", "level", "debug", "message", "starting list-watch")
+	c.logger.LogCtx(ctx, "level", "debug", "message", "starting list-watch")
 
-	deleteChan, updateChan, errChan := f.informer.Watch(ctx)
-	f.ProcessEvents(ctx, deleteChan, updateChan, errChan)
+	deleteChan, updateChan, errChan := c.informer.Watch(ctx)
+	c.ProcessEvents(ctx, deleteChan, updateChan, errChan)
 
 	return nil
+}
+
+// resourceSet tries to lookup the appropriate resource set based on the
+// received runtime object. There might be not any resource set for an observed
+// runtime object if an operator uses multiple controllers for reconciliations.
+// There must not be multiple resource sets per observed runtime object though.
+// If this is the case, ResourceSet returns an error.
+func (c *Controller) resourceSet(obj interface{}) (*ResourceSet, error) {
+	var found []*ResourceSet
+
+	for _, r := range c.resourceSets {
+		if r.Handles(obj) {
+			found = append(found, r)
+		}
+	}
+
+	if len(found) == 0 {
+		accessor, err := meta.Accessor(obj)
+		if err != nil {
+			c.logger.Log("level", "warning", "message", "cannot create accessor for object", "object", fmt.Sprintf("%#v", obj), "stack", fmt.Sprintf("%#v", err))
+		} else {
+			c.logger.Log("level", "debug", "message", "no resource set for reconciled object", "object", accessor.GetSelfLink())
+		}
+
+		return nil, microerror.Mask(noResourceSetError)
+	}
+	if len(found) > 1 {
+		return nil, microerror.Maskf(executionFailedError, "multiple handling resource sets found; only single allowed")
+	}
+
+	return found[0], nil
 }
 
 // ProcessDelete is a drop-in for an informer's DeleteFunc. It receives the
@@ -329,7 +399,7 @@ func (f *Controller) bootWithError(ctx context.Context) error {
 // reconciliation logic for delete events.
 //
 //     func deleteFunc(obj interface{}) {
-//         err := f.ProcessDelete(obj, resources)
+//         err := c.ProcessDelete(obj, resources)
 //         if err != nil {
 //             // error handling here
 //         }
@@ -372,7 +442,7 @@ func ProcessDelete(ctx context.Context, obj interface{}, resources []Resource) e
 // state has to be created, deleted and updated eventually, in this order.
 //
 //     func updateFunc(oldObj, newObj interface{}) {
-//         err := f.ProcessUpdate(newObj, resources)
+//         err := c.ProcessUpdate(newObj, resources)
 //         if err != nil {
 //             // error handling here
 //         }
