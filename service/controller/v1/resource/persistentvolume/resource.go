@@ -126,6 +126,7 @@ func (r *Resource) newRecycleStateAnnotation(pv *apiv1.PersistentVolume, recycle
 			Name:        pv.Name,
 			Annotations: pv.Annotations,
 			Labels:      pv.Labels,
+			Finalizers:  []string{},
 		},
 		Spec: apiv1.PersistentVolumeSpec{
 			Capacity:                      pv.Spec.Capacity,
@@ -157,8 +158,9 @@ func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 
 	pvc := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
-			Namespace: "kube-system",
+			Name:       fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
+			Namespace:  "kube-system",
+			Finalizers: []string{},
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
 			AccessModes:      pv.Spec.AccessModes,
