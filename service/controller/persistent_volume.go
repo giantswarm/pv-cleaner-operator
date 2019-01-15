@@ -13,7 +13,9 @@ import (
 	"github.com/giantswarm/pv-cleaner-operator/service/controller/v1"
 )
 
-const cleanupLabel = "persistentvolume.giantswarm.io/cleanup-on-release"
+const (
+	cleanupLabel = "persistentvolume.giantswarm.io/cleanup-on-release"
+)
 
 type PersistentVolumeConfig struct {
 	K8sClient kubernetes.Interface
