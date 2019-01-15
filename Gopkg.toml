@@ -37,13 +37,13 @@
   name = "github.com/giantswarm/micrologger"
   branch = "master"
 
-[[constraint]]
-  branch = "master"
+[[override]]
+  branch = "kubernetes-1.13.2"
   name = "github.com/giantswarm/operatorkit"
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.10.4"
+  version = "kubernetes-1.13.2"
 
 
 
