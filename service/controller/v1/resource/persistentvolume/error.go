@@ -2,7 +2,6 @@ package persistentvolume
 
 import (
 	"github.com/giantswarm/microerror"
-	"strings"
 )
 
 var invalidConfigError = &microerror.Error{
