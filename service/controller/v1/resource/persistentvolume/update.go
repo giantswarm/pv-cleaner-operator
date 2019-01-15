@@ -63,7 +63,7 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 	case "AvailableCleaning":
 		pvcdef := newPvc(pv)
 		pvc, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Create(pvcdef)
-		if IsPVCExists(err) {
+		if errors.IsAlreadyExists(err) {
 			return nil
 		}
 		if err != nil {
@@ -96,7 +96,7 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 			return microerror.Maskf(err, "failed to delete cleanup job", cleanupJob.Name)
 		}
 
-		r.logger.LogCtx(ctx, "pvc", pvc.Name, "removing pvc protection finalizer", pvc.Name)
+		r.logger.LogCtx(ctx, "removing finalizer from pvc %#q", pvc.Name)
 		pvc.ObjectMeta.Finalizers = []string{}
 		if pvc, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Update(pvc); err != nil {
 			return microerror.Maskf(err, "failed to delete pvc finalizers", pvc.Name)
@@ -106,7 +106,7 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 			return microerror.Maskf(err, "failed to delete claim for persistent volume", pv.Name)
 		}
 	case "ReleasedCleaning":
-		r.logger.LogCtx(ctx, "pv", pv.Name, "removing pv protection finalizer", pv.Name)
+		r.logger.LogCtx(ctx, "removing finalizer from pv %#q", pv.Name)
 		pv.ObjectMeta.Finalizers = []string{}
 		if pv, err := r.k8sClient.Core().PersistentVolumes().Update(pv); err != nil {
 			return microerror.Maskf(err, "failed to delete pv finalizers", pv.Name)

@@ -22,11 +22,3 @@ var wrongTypeError = &microerror.Error{
 func IsWrongTypeError(err error) bool {
 	return microerror.Cause(err) == wrongTypeError
 }
-
-// IsPVCExists asserts pvc exists error from create API response.
-func IsPVCExists(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(microerror.Cause(err).Error(), "already exists")
-}
