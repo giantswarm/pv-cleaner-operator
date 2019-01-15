@@ -63,6 +63,9 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 	case "AvailableCleaning":
 		pvcdef := newPvc(pv)
 		pvc, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Create(pvcdef)
+		if IsPVCExists(err) {
+			return nil
+		}
 		if err != nil {
 			return microerror.Maskf(err, "failed to create persistent volume claim", pvc.Name)
 		}
