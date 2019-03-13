@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -117,6 +118,6 @@ func New(config Config) (*Service, error) {
 
 func (s *Service) Boot() {
 	s.bootOnce.Do(func() {
-		s.persistentVolumeController.Boot()
+		s.persistentVolumeController.Boot(context.Background())
 	})
 }
