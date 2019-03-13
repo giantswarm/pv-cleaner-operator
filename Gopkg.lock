@@ -47,7 +47,11 @@
   branch = "master"
   name = "github.com/giantswarm/exporterkit"
   packages = ["collector"]
+<<<<<<< HEAD
   revision = "1d58394415d4f9fdd2bec8a9ec8d085131afd1c8"
+=======
+  revision = "3509191efc7b4714c1dc57ab47df71a52148493f"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -62,7 +66,11 @@
   branch = "master"
   name = "github.com/giantswarm/microerror"
   packages = ["."]
+<<<<<<< HEAD
   revision = "dc32fd459f94c7f9f938366135f6a19b3f9c63a9"
+=======
+  revision = "3bc3cb1a36700aa4bbfcf6c335bc2ab92ad66d8d"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -83,7 +91,11 @@
     "server",
     "tls"
   ]
+<<<<<<< HEAD
   revision = "864e4cc9c80644e48e8ac3168b6aafb5cbd0e5bb"
+=======
+  revision = "aaff79223ca0620a1b6506f0b598da59557659e6"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -93,10 +105,17 @@
     "loggermeta",
     "microloggertest"
   ]
+<<<<<<< HEAD
   revision = "0926d9b7c5419173936b4556411a103bdf8d5966"
 
 [[projects]]
   branch = "kubeconfig"
+=======
+  revision = "9e733616eec2897b81d28d6c41161a8f410158d6"
+
+[[projects]]
+  branch = "master"
+>>>>>>> master
   name = "github.com/giantswarm/operatorkit"
   packages = [
     "client/k8scrdclient",
@@ -115,13 +134,21 @@
     "informer",
     "informer/collector"
   ]
+<<<<<<< HEAD
   revision = "031a73d98e0a1d566b231919c97cbd823a5d3729"
+=======
+  revision = "204721021837676ee3e6ee110ae58ec2e2b0d0c0"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
   name = "github.com/giantswarm/versionbundle"
   packages = ["."]
+<<<<<<< HEAD
   revision = "1dee14fe97dc7f15ec60759bcbc99830b56993b6"
+=======
+  revision = "bb309403328a6b8ee85d88e2774a5cc902a4f36c"
+>>>>>>> master
 
 [[projects]]
   name = "github.com/go-kit/kit"
@@ -142,8 +169,13 @@
 [[projects]]
   name = "github.com/go-resty/resty"
   packages = ["."]
+<<<<<<< HEAD
   revision = "fa5875c0caa5c260ab78acec5a244215a730247f"
   version = "v1.12.0"
+=======
+  revision = "03c09fa32a21b7b27b8dbb3877826c1ab3d2daa2"
+  version = "v1.11.0"
+>>>>>>> master
 
 [[projects]]
   name = "github.com/go-stack/stack"
@@ -157,8 +189,13 @@
     "proto",
     "sortkeys"
   ]
+<<<<<<< HEAD
   revision = "ba06b47c162d49f2af050fb4c75bcbc86a159d5c"
   version = "v1.2.1"
+=======
+  revision = "4cbf7e384e768b4e01799441fdf2a706a5635ae7"
+  version = "v1.2.0"
+>>>>>>> master
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -169,6 +206,7 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
+<<<<<<< HEAD
   revision = "c823c79ea1570fb5ff454033735a8e68575d1d0f"
   version = "v1.3.0"
 
@@ -180,6 +218,19 @@
 
 [[projects]]
   branch = "master"
+=======
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/google/btree"
+  packages = ["."]
+  revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
+
+[[projects]]
+  branch = "master"
+>>>>>>> master
   name = "github.com/google/gofuzz"
   packages = ["."]
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
@@ -195,6 +246,7 @@
   version = "v0.2.0"
 
 [[projects]]
+<<<<<<< HEAD
   name = "github.com/gorilla/mux"
   packages = ["."]
   revision = "a7962380ca08b5a188038c69871b8d3fbdf31e89"
@@ -210,13 +262,41 @@
   revision = "3befbb6ad0cc97d4c25d851e9528915809e1a22f"
 
 [[projects]]
+=======
+  name = "github.com/gorilla/context"
+  packages = ["."]
+  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
+
+[[projects]]
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gregjones/httpcache"
+  packages = [
+    ".",
+    "diskcache"
+  ]
+  revision = "c63ab54fda8f77302f8d414e19933f2b6026a089"
+
+[[projects]]
+>>>>>>> master
   name = "github.com/hashicorp/golang-lru"
   packages = [
     ".",
     "simplelru"
   ]
+<<<<<<< HEAD
   revision = "7087cb70de9f7a8bc0a10c375cb0d2280a8edf9c"
   version = "v0.5.1"
+=======
+  revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
+  version = "v0.5.0"
+>>>>>>> master
 
 [[projects]]
   name = "github.com/hashicorp/hcl"
@@ -236,12 +316,15 @@
   version = "v1.0.0"
 
 [[projects]]
+<<<<<<< HEAD
   name = "github.com/imdario/mergo"
   packages = ["."]
   revision = "7c29201646fa3de8506f701213473dd407f19646"
   version = "v0.3.7"
 
 [[projects]]
+=======
+>>>>>>> master
   name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
@@ -250,8 +333,13 @@
 [[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
+<<<<<<< HEAD
   revision = "0ff49de124c6f76f8494e194af75bde0f1a49a29"
   version = "v1.1.6"
+=======
+  revision = "1624edc4454b8682399def8740d46db5e4362ba4"
+  version = "v1.1.5"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -327,23 +415,38 @@
     "prometheus/internal",
     "prometheus/promhttp"
   ]
+<<<<<<< HEAD
   revision = "fa4aa9000d2863904891d193dea354d23f3d712a"
+=======
+  revision = "26e258bb9c9a94c26d4a46ff302ec7e855b82e10"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/client_model"
   packages = ["go"]
+<<<<<<< HEAD
   revision = "fd36f4220a901265f90734c3183c5f0c91daa0b8"
 
 [[projects]]
+=======
+  revision = "56726106282f1985ea77d5305743db7231b0c0a8"
+
+[[projects]]
+  branch = "master"
+>>>>>>> master
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
     "internal/bitbucket.org/ww/goautoneg",
     "model"
   ]
+<<<<<<< HEAD
   revision = "cfeb6f9992ffa54aaa4f2170ade4067ee478b250"
   version = "v0.2.0"
+=======
+  revision = "2998b132700a7d019ff618c06a234b47c1f3f681"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -355,7 +458,11 @@
     "nfs",
     "xfs"
   ]
+<<<<<<< HEAD
   revision = "d0f344d83b0c80a1bc03b547a2374a9ec6711144"
+=======
+  revision = "bf6a532e95b1f7a62adf0ab5050a5bb2237ad2f4"
+>>>>>>> master
 
 [[projects]]
   name = "github.com/spf13/afero"
@@ -363,8 +470,13 @@
     ".",
     "mem"
   ]
+<<<<<<< HEAD
   revision = "f4711e4db9e9a1d3887343acb72b2bbfc2f686f5"
   version = "v1.2.1"
+=======
+  revision = "a5d6946387efe7d64d09dcba68cdd523dc1273a3"
+  version = "v1.2.0"
+>>>>>>> master
 
 [[projects]]
   name = "github.com/spf13/cast"
@@ -381,8 +493,13 @@
 [[projects]]
   name = "github.com/spf13/jwalterweatherman"
   packages = ["."]
+<<<<<<< HEAD
   revision = "94f6ae3ed3bceceafa716478c5fbf8d29ca601a1"
   version = "v1.1.0"
+=======
+  revision = "4a4406e478ca629068e7768fc33f3f044173c0a6"
+  version = "v1.0.0"
+>>>>>>> master
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -393,14 +510,23 @@
 [[projects]]
   name = "github.com/spf13/viper"
   packages = ["."]
+<<<<<<< HEAD
   revision = "9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9"
   version = "v1.3.2"
+=======
+  revision = "6d33b5a963d922d182c91e8a1c88d81fd150cfd4"
+  version = "v1.3.1"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
+<<<<<<< HEAD
   revision = "a1f597ede03a7bef967a422b5b3a5bd08805a01e"
+=======
+  revision = "ff983b9c42bc9fbf91556e191cc8efb585c16908"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -414,7 +540,11 @@
     "idna",
     "publicsuffix"
   ]
+<<<<<<< HEAD
   revision = "5c2c250b6a70e39b74bb544433a348a892b10530"
+=======
+  revision = "915654e7eabcea33ae277abbecf52f0d8b7a9fdc"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -423,13 +553,21 @@
     ".",
     "internal"
   ]
+<<<<<<< HEAD
   revision = "e64efc72b421e893cbf63f17ba2221e7d6d0b0f3"
+=======
+  revision = "5dab4167f31cbd76b407f1486c86b40748bc5073"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sync"
   packages = ["errgroup"]
+<<<<<<< HEAD
   revision = "e225da77a7e68af35c70ccbf71af2b83e6acac3c"
+=======
+  revision = "37e7f081c4d4c64e13b10787722085407fe5d15f"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
@@ -438,7 +576,11 @@
     "unix",
     "windows"
   ]
+<<<<<<< HEAD
   revision = "fead79001313d15903fb4605b4a1b781532cd93e"
+=======
+  revision = "11f53e03133963fb11ae0588e08b5e0b85be8be5"
+>>>>>>> master
 
 [[projects]]
   name = "golang.org/x/text"
@@ -465,6 +607,7 @@
   branch = "master"
   name = "golang.org/x/time"
   packages = ["rate"]
+<<<<<<< HEAD
   revision = "9d24e82272b4f38b78bc8cff74fa936d31ccd8ef"
 
 [[projects]]
@@ -482,6 +625,25 @@
   version = "v1.4.0"
 
 [[projects]]
+=======
+  revision = "85acf8d2951cb2a3bde7632f9ff273ef0379bcbd"
+
+[[projects]]
+  name = "google.golang.org/appengine"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "e9657d882bb81064595ca3b56cbe2546bbabf7b1"
+  version = "v1.4.0"
+
+[[projects]]
+>>>>>>> master
   name = "gopkg.in/inf.v0"
   packages = ["."]
   revision = "d2d2541c53f18d2a059457998ce2876cc8e67cbf"
@@ -545,6 +707,10 @@
   version = "kubernetes-1.13.2"
 
 [[projects]]
+<<<<<<< HEAD
+=======
+  branch = "release-1.13"
+>>>>>>> master
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -591,7 +757,10 @@
     "third_party/forked/golang/reflect"
   ]
   revision = "2b1284ed4c93a43499e781493253e2ac5959c4fd"
+<<<<<<< HEAD
   version = "kubernetes-1.13.0"
+=======
+>>>>>>> master
 
 [[projects]]
   name = "k8s.io/client-go"
@@ -697,14 +866,23 @@
 [[projects]]
   name = "k8s.io/klog"
   packages = ["."]
+<<<<<<< HEAD
   revision = "71442cd4037d612096940ceb0f3fec3f7fff66e0"
   version = "v0.2.0"
+=======
+  revision = "a5bc97fbc634d635061f3146511332c7e313a55a"
+  version = "v0.1.0"
+>>>>>>> master
 
 [[projects]]
   branch = "master"
   name = "k8s.io/kube-openapi"
   packages = ["pkg/util/proto"]
+<<<<<<< HEAD
   revision = "15615b16d372105f0c69ff47dfe7402926a65aaa"
+=======
+  revision = "ced9eb3070a5f1c548ef46e8dfe2a97c208d9f03"
+>>>>>>> master
 
 [[projects]]
   name = "sigs.k8s.io/yaml"
@@ -715,6 +893,10 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
+<<<<<<< HEAD
   inputs-digest = "618e389f8a29f2bc6222da81e7aef31981e85f5c4fa2a7f9c12ff7d21825d472"
+=======
+  inputs-digest = "d57ed94a861cfb890eddf03154e66fd1d8ce7d39ee73dbe883a5706a2c2e46c1"
+>>>>>>> master
   solver-name = "gps-cdcl"
   solver-version = 1

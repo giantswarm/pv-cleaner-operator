@@ -11,13 +11,19 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+<<<<<<< HEAD
 	"math"
+=======
+>>>>>>> master
 	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+<<<<<<< HEAD
 	"sync"
+=======
+>>>>>>> master
 	"time"
 
 	"golang.org/x/net/context/ctxhttp"
@@ -79,9 +85,12 @@ func (e *tokenJSON) expiry() (t time.Time) {
 type expirationTime int32
 
 func (e *expirationTime) UnmarshalJSON(b []byte) error {
+<<<<<<< HEAD
 	if len(b) == 0 || string(b) == "null" {
 		return nil
 	}
+=======
+>>>>>>> master
 	var n json.Number
 	err := json.Unmarshal(b, &n)
 	if err != nil {
@@ -91,13 +100,17 @@ func (e *expirationTime) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
+<<<<<<< HEAD
 	if i > math.MaxInt32 {
 		i = math.MaxInt32
 	}
+=======
+>>>>>>> master
 	*e = expirationTime(i)
 	return nil
 }
 
+<<<<<<< HEAD
 // RegisterBrokenAuthHeaderProvider previously did something. It is now a no-op.
 //
 // Deprecated: this function no longer does anything. Caller code that
@@ -163,6 +176,104 @@ func setAuthStyle(tokenURL string, v AuthStyle) {
 func newTokenRequest(tokenURL, clientID, clientSecret string, v url.Values, authStyle AuthStyle) (*http.Request, error) {
 	if authStyle == AuthStyleInParams {
 		v = cloneURLValues(v)
+=======
+var brokenAuthHeaderProviders = []string{
+	"https://accounts.google.com/",
+	"https://api.codeswholesale.com/oauth/token",
+	"https://api.dropbox.com/",
+	"https://api.dropboxapi.com/",
+	"https://api.instagram.com/",
+	"https://api.netatmo.net/",
+	"https://api.odnoklassniki.ru/",
+	"https://api.pushbullet.com/",
+	"https://api.soundcloud.com/",
+	"https://api.twitch.tv/",
+	"https://id.twitch.tv/",
+	"https://app.box.com/",
+	"https://api.box.com/",
+	"https://connect.stripe.com/",
+	"https://login.mailchimp.com/",
+	"https://login.microsoftonline.com/",
+	"https://login.salesforce.com/",
+	"https://login.windows.net",
+	"https://login.live.com/",
+	"https://login.live-int.com/",
+	"https://oauth.sandbox.trainingpeaks.com/",
+	"https://oauth.trainingpeaks.com/",
+	"https://oauth.vk.com/",
+	"https://openapi.baidu.com/",
+	"https://slack.com/",
+	"https://test-sandbox.auth.corp.google.com",
+	"https://test.salesforce.com/",
+	"https://user.gini.net/",
+	"https://www.douban.com/",
+	"https://www.googleapis.com/",
+	"https://www.linkedin.com/",
+	"https://www.strava.com/oauth/",
+	"https://www.wunderlist.com/oauth/",
+	"https://api.patreon.com/",
+	"https://sandbox.codeswholesale.com/oauth/token",
+	"https://api.sipgate.com/v1/authorization/oauth",
+	"https://api.medium.com/v1/tokens",
+	"https://log.finalsurge.com/oauth/token",
+	"https://multisport.todaysplan.com.au/rest/oauth/access_token",
+	"https://whats.todaysplan.com.au/rest/oauth/access_token",
+	"https://stackoverflow.com/oauth/access_token",
+	"https://account.health.nokia.com",
+	"https://accounts.zoho.com",
+	"https://gitter.im/login/oauth/token",
+	"https://openid-connect.onelogin.com/oidc",
+	"https://api.dailymotion.com/oauth/token",
+}
+
+// brokenAuthHeaderDomains lists broken providers that issue dynamic endpoints.
+var brokenAuthHeaderDomains = []string{
+	".auth0.com",
+	".force.com",
+	".myshopify.com",
+	".okta.com",
+	".oktapreview.com",
+}
+
+func RegisterBrokenAuthHeaderProvider(tokenURL string) {
+	brokenAuthHeaderProviders = append(brokenAuthHeaderProviders, tokenURL)
+}
+
+// providerAuthHeaderWorks reports whether the OAuth2 server identified by the tokenURL
+// implements the OAuth2 spec correctly
+// See https://code.google.com/p/goauth2/issues/detail?id=31 for background.
+// In summary:
+// - Reddit only accepts client secret in the Authorization header
+// - Dropbox accepts either it in URL param or Auth header, but not both.
+// - Google only accepts URL param (not spec compliant?), not Auth header
+// - Stripe only accepts client secret in Auth header with Bearer method, not Basic
+func providerAuthHeaderWorks(tokenURL string) bool {
+	for _, s := range brokenAuthHeaderProviders {
+		if strings.HasPrefix(tokenURL, s) {
+			// Some sites fail to implement the OAuth2 spec fully.
+			return false
+		}
+	}
+
+	if u, err := url.Parse(tokenURL); err == nil {
+		for _, s := range brokenAuthHeaderDomains {
+			if strings.HasSuffix(u.Host, s) {
+				return false
+			}
+		}
+	}
+
+	// Assume the provider implements the spec properly
+	// otherwise. We can add more exceptions as they're
+	// discovered. We will _not_ be adding configurable hooks
+	// to this package to let users select server bugs.
+	return true
+}
+
+func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string, v url.Values) (*Token, error) {
+	bustedAuth := !providerAuthHeaderWorks(tokenURL)
+	if bustedAuth {
+>>>>>>> master
 		if clientID != "" {
 			v.Set("client_id", clientID)
 		}
@@ -175,6 +286,7 @@ func newTokenRequest(tokenURL, clientID, clientSecret string, v url.Values, auth
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+<<<<<<< HEAD
 	if authStyle == AuthStyleInHeader {
 		req.SetBasicAuth(url.QueryEscape(clientID), url.QueryEscape(clientSecret))
 	}
@@ -233,12 +345,22 @@ func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string,
 }
 
 func doTokenRoundTrip(ctx context.Context, req *http.Request) (*Token, error) {
+=======
+	if !bustedAuth {
+		req.SetBasicAuth(url.QueryEscape(clientID), url.QueryEscape(clientSecret))
+	}
+>>>>>>> master
 	r, err := ctxhttp.Do(ctx, ContextClient(ctx), req)
 	if err != nil {
 		return nil, err
 	}
+<<<<<<< HEAD
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1<<20))
 	r.Body.Close()
+=======
+	defer r.Body.Close()
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1<<20))
+>>>>>>> master
 	if err != nil {
 		return nil, fmt.Errorf("oauth2: cannot fetch token: %v", err)
 	}
@@ -264,7 +386,11 @@ func doTokenRoundTrip(ctx context.Context, req *http.Request) (*Token, error) {
 			Raw:          vals,
 		}
 		e := vals.Get("expires_in")
+<<<<<<< HEAD
 		if e == "" || e == "null" {
+=======
+		if e == "" {
+>>>>>>> master
 			// TODO(jbd): Facebook's OAuth2 implementation is broken and
 			// returns expires_in field in expires. Remove the fallback to expires,
 			// when Facebook fixes their implementation.
@@ -288,8 +414,18 @@ func doTokenRoundTrip(ctx context.Context, req *http.Request) (*Token, error) {
 		}
 		json.Unmarshal(body, &token.Raw) // no error checks for optional fields
 	}
+<<<<<<< HEAD
 	if token.AccessToken == "" {
 		return nil, errors.New("oauth2: server response missing access_token")
+=======
+	// Don't overwrite `RefreshToken` with an empty value
+	// if this was a token refreshing request.
+	if token.RefreshToken == "" {
+		token.RefreshToken = v.Get("refresh_token")
+	}
+	if token.AccessToken == "" {
+		return token, errors.New("oauth2: server response missing access_token")
+>>>>>>> master
 	}
 	return token, nil
 }

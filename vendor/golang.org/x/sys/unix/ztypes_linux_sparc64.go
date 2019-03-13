@@ -775,6 +775,7 @@ type Sigset_t struct {
 }
 
 type SignalfdSiginfo struct {
+<<<<<<< HEAD
 	Signo     uint32
 	Errno     int32
 	Code      int32
@@ -799,6 +800,29 @@ type SignalfdSiginfo struct {
 	_         [28]uint8
 }
 
+=======
+	Signo   uint32
+	Errno   int32
+	Code    int32
+	Pid     uint32
+	Uid     uint32
+	Fd      int32
+	Tid     uint32
+	Band    uint32
+	Overrun uint32
+	Trapno  uint32
+	Status  int32
+	Int     int32
+	Ptr     uint64
+	Utime   uint64
+	Stime   uint64
+	Addr    uint64
+	_       [48]uint8
+}
+
+const RNDGETENTCNT = 0x40045200
+
+>>>>>>> master
 const PERF_IOC_FLAG_GROUP = 0x1
 
 type Termios struct {
@@ -968,8 +992,12 @@ type PerfEventAttr struct {
 	Clockid            int32
 	Sample_regs_intr   uint64
 	Aux_watermark      uint32
+<<<<<<< HEAD
 	Sample_max_stack   uint16
 	_                  uint16
+=======
+	_                  uint32
+>>>>>>> master
 }
 
 type PerfEventMmapPage struct {
@@ -1072,7 +1100,10 @@ const (
 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
 	PERF_COUNT_SW_DUMMY            = 0x9
+<<<<<<< HEAD
 	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+=======
+>>>>>>> master
 
 	PERF_SAMPLE_IP           = 0x1
 	PERF_SAMPLE_TID          = 0x2
@@ -1094,6 +1125,7 @@ const (
 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
+<<<<<<< HEAD
 	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
 	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
 	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
@@ -1104,12 +1136,15 @@ const (
 	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
 	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
 	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+=======
+>>>>>>> master
 
 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
 	PERF_FORMAT_ID                 = 0x4
 	PERF_FORMAT_GROUP              = 0x8
 
+<<<<<<< HEAD
 	PERF_RECORD_MMAP            = 0x1
 	PERF_RECORD_LOST            = 0x2
 	PERF_RECORD_COMM            = 0x3
@@ -1126,6 +1161,17 @@ const (
 	PERF_RECORD_SWITCH          = 0xe
 	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
 	PERF_RECORD_NAMESPACES      = 0x10
+=======
+	PERF_RECORD_MMAP       = 0x1
+	PERF_RECORD_LOST       = 0x2
+	PERF_RECORD_COMM       = 0x3
+	PERF_RECORD_EXIT       = 0x4
+	PERF_RECORD_THROTTLE   = 0x5
+	PERF_RECORD_UNTHROTTLE = 0x6
+	PERF_RECORD_FORK       = 0x7
+	PERF_RECORD_READ       = 0x8
+	PERF_RECORD_SAMPLE     = 0x9
+>>>>>>> master
 
 	PERF_CONTEXT_HV     = -0x20
 	PERF_CONTEXT_KERNEL = -0x80
@@ -1138,7 +1184,10 @@ const (
 	PERF_FLAG_FD_NO_GROUP = 0x1
 	PERF_FLAG_FD_OUTPUT   = 0x2
 	PERF_FLAG_PID_CGROUP  = 0x4
+<<<<<<< HEAD
 	PERF_FLAG_FD_CLOEXEC  = 0x8
+=======
+>>>>>>> master
 )
 
 const (
@@ -1444,9 +1493,12 @@ const (
 	SizeofTpacketHdr  = 0x20
 	SizeofTpacket2Hdr = 0x20
 	SizeofTpacket3Hdr = 0x30
+<<<<<<< HEAD
 
 	SizeofTpacketStats   = 0x8
 	SizeofTpacketStatsV3 = 0xc
+=======
+>>>>>>> master
 )
 
 const (
@@ -2025,10 +2077,13 @@ const (
 	NCSI_CHANNEL_ATTR_VLAN_ID       = 0xa
 )
 
+<<<<<<< HEAD
 type ScmTimestamping struct {
 	Ts [3]Timespec
 }
 
+=======
+>>>>>>> master
 const (
 	SOF_TIMESTAMPING_TX_HARDWARE  = 0x1
 	SOF_TIMESTAMPING_TX_SOFTWARE  = 0x2
@@ -2048,6 +2103,7 @@ const (
 
 	SOF_TIMESTAMPING_LAST = 0x4000
 	SOF_TIMESTAMPING_MASK = 0x7fff
+<<<<<<< HEAD
 
 	SCM_TSTAMP_SND   = 0x0
 	SCM_TSTAMP_SCHED = 0x1
@@ -2078,3 +2134,6 @@ type FanotifyResponse struct {
 	Fd       int32
 	Response uint32
 }
+=======
+)
+>>>>>>> master

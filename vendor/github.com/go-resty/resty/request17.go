@@ -61,6 +61,15 @@ func (r *Request) Context() context.Context {
 	return r.ctx
 }
 
+// Context method returns the Context if its already set in request
+// otherwise it creates new one using `context.Background()`.
+func (r *Request) Context() context.Context {
+	if r.ctx == nil {
+		return context.Background()
+	}
+	return r.ctx
+}
+
 // SetContext method sets the context.Context for current Request. It allows
 // to interrupt the request execution if ctx.Done() channel is closed.
 // See https://blog.golang.org/context article and the "context" package
