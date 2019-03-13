@@ -416,16 +416,6 @@ func canStaleOnError(respHeaders, reqHeaders http.Header) bool {
 func getEndToEndHeaders(respHeaders http.Header) []string {
 	// These headers are always hop-by-hop
 	hopByHopHeaders := map[string]struct{}{
-<<<<<<< HEAD
-		"Connection":          {},
-		"Keep-Alive":          {},
-		"Proxy-Authenticate":  {},
-		"Proxy-Authorization": {},
-		"Te":                  {},
-		"Trailers":            {},
-		"Transfer-Encoding":   {},
-		"Upgrade":             {},
-=======
 		"Connection":          struct{}{},
 		"Keep-Alive":          struct{}{},
 		"Proxy-Authenticate":  struct{}{},
@@ -434,7 +424,6 @@ func getEndToEndHeaders(respHeaders http.Header) []string {
 		"Trailers":          struct{}{},
 		"Transfer-Encoding": struct{}{},
 		"Upgrade":           struct{}{},
->>>>>>> master
 	}
 
 	for _, extra := range strings.Split(respHeaders.Get("connection"), ",") {
@@ -444,11 +433,7 @@ func getEndToEndHeaders(respHeaders http.Header) []string {
 		}
 	}
 	endToEndHeaders := []string{}
-<<<<<<< HEAD
-	for respHeader := range respHeaders {
-=======
 	for respHeader, _ := range respHeaders {
->>>>>>> master
 		if _, ok := hopByHopHeaders[respHeader]; !ok {
 			endToEndHeaders = append(endToEndHeaders, respHeader)
 		}

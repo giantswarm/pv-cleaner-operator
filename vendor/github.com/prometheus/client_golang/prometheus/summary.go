@@ -405,23 +405,6 @@ type summaryCounts struct {
 }
 
 type noObjectivesSummary struct {
-<<<<<<< HEAD
-	// countAndHotIdx enables lock-free writes with use of atomic updates.
-	// The most significant bit is the hot index [0 or 1] of the count field
-	// below. Observe calls update the hot one. All remaining bits count the
-	// number of Observe calls. Observe starts by incrementing this counter,
-	// and finish by incrementing the count field in the respective
-	// summaryCounts, as a marker for completion.
-	//
-	// Calls of the Write method (which are non-mutating reads from the
-	// perspective of the summary) swap the hot–cold under the writeMtx
-	// lock. A cooldown is awaited (while locked) by comparing the number of
-	// observations with the initiation count. Once they match, then the
-	// last observation on the now cool one has completed. All cool fields must
-	// be merged into the new hot before releasing writeMtx.
-
-	// Fields with atomic access first! See alignment constraint:
-=======
 	// countAndHotIdx is a complicated one. For lock-free yet atomic
 	// observations, we need to save the total count of observations again,
 	// combined with the index of the currently-hot counts struct, so that
@@ -434,7 +417,6 @@ type noObjectivesSummary struct {
 	// which is about 3000 years.
 	//
 	// This has to be first in the struct for 64bit alignment. See
->>>>>>> master
 	// http://golang.org/pkg/sync/atomic/#pkg-note-BUG
 	countAndHotIdx uint64
 
@@ -447,10 +429,7 @@ type noObjectivesSummary struct {
 	// pointers to guarantee 64bit alignment of the histogramCounts, see
 	// http://golang.org/pkg/sync/atomic/#pkg-note-BUG.
 	counts [2]*summaryCounts
-<<<<<<< HEAD
-=======
 	hotIdx int // Index of currently-hot counts. Only used within Write.
->>>>>>> master
 
 	labelPairs []*dto.LabelPair
 }
@@ -460,19 +439,11 @@ func (s *noObjectivesSummary) Desc() *Desc {
 }
 
 func (s *noObjectivesSummary) Observe(v float64) {
-<<<<<<< HEAD
-	// We increment h.countAndHotIdx so that the counter in the lower
-	// 63 bits gets incremented. At the same time, we get the new value
-	// back, which we can use to find the currently-hot counts.
-	n := atomic.AddUint64(&s.countAndHotIdx, 1)
-	hotCounts := s.counts[n>>63]
-=======
 	// We increment s.countAndHotIdx by 2 so that the counter in the upper
 	// 63 bits gets incremented by 1. At the same time, we get the new value
 	// back, which we can use to find the currently-hot counts.
 	n := atomic.AddUint64(&s.countAndHotIdx, 2)
 	hotCounts := s.counts[n%2]
->>>>>>> master
 
 	for {
 		oldBits := atomic.LoadUint64(&hotCounts.sumBits)
@@ -487,35 +458,6 @@ func (s *noObjectivesSummary) Observe(v float64) {
 }
 
 func (s *noObjectivesSummary) Write(out *dto.Metric) error {
-<<<<<<< HEAD
-	// For simplicity, we protect this whole method by a mutex. It is not in
-	// the hot path, i.e. Observe is called much more often than Write. The
-	// complication of making Write lock-free isn't worth it, if possible at
-	// all.
-	s.writeMtx.Lock()
-	defer s.writeMtx.Unlock()
-
-	// Adding 1<<63 switches the hot index (from 0 to 1 or from 1 to 0)
-	// without touching the count bits. See the struct comments for a full
-	// description of the algorithm.
-	n := atomic.AddUint64(&s.countAndHotIdx, 1<<63)
-	// count is contained unchanged in the lower 63 bits.
-	count := n & ((1 << 63) - 1)
-	// The most significant bit tells us which counts is hot. The complement
-	// is thus the cold one.
-	hotCounts := s.counts[n>>63]
-	coldCounts := s.counts[(^n)>>63]
-
-	// Await cooldown.
-	for count != atomic.LoadUint64(&coldCounts.count) {
-		runtime.Gosched() // Let observations get work done.
-	}
-
-	sum := &dto.Summary{
-		SampleCount: proto.Uint64(count),
-		SampleSum:   proto.Float64(math.Float64frombits(atomic.LoadUint64(&coldCounts.sumBits))),
-	}
-=======
 	var (
 		sum                   = &dto.Summary{}
 		hotCounts, coldCounts *summaryCounts
@@ -571,7 +513,6 @@ func (s *noObjectivesSummary) Write(out *dto.Metric) error {
 
 	sum.SampleCount = proto.Uint64(count)
 	sum.SampleSum = proto.Float64(math.Float64frombits(atomic.LoadUint64(&coldCounts.sumBits)))
->>>>>>> master
 
 	out.Summary = sum
 	out.Label = s.labelPairs

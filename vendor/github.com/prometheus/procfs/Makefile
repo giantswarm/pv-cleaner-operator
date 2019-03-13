@@ -17,24 +17,14 @@ include Makefile.common
 	./ttar -C $(dir $*) -x -f $*.ttar
 	touch $@
 
-<<<<<<< HEAD
-update_fixtures:
-	rm -vf fixtures/.unpacked
-	./ttar -c -f fixtures.ttar fixtures/
-=======
 update_fixtures: fixtures.ttar sysfs/fixtures.ttar
 
 %fixtures.ttar: %/fixtures
 	rm -v $(dir $*)fixtures/.unpacked
 	./ttar -C $(dir $*) -c -f $*fixtures.ttar fixtures/
->>>>>>> master
 
 .PHONY: build
 build:
 
 .PHONY: test
-<<<<<<< HEAD
-test: fixtures/.unpacked common-test
-=======
 test: fixtures/.unpacked sysfs/fixtures/.unpacked common-test
->>>>>>> master

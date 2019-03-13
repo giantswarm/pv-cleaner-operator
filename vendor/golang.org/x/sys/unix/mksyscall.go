@@ -88,13 +88,6 @@ func parseParam(p string) Param {
 func main() {
 	// Get the OS and architecture (using GOARCH_TARGET if it exists)
 	goos := os.Getenv("GOOS")
-<<<<<<< HEAD
-	if goos == "" {
-		fmt.Fprintln(os.Stderr, "GOOS not defined in environment")
-		os.Exit(1)
-	}
-=======
->>>>>>> master
 	goarch := os.Getenv("GOARCH_TARGET")
 	if goarch == "" {
 		goarch = os.Getenv("GOARCH")
@@ -231,11 +224,7 @@ func main() {
 					} else {
 						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name))
 					}
-<<<<<<< HEAD
-				} else if (p.Type == "int64" || p.Type == "uint64") && endianness != "" {
-=======
 				} else if p.Type == "int64" && endianness != "" {
->>>>>>> master
 					if len(args)%2 == 1 && *arm {
 						// arm abi specifies 64-bit argument uses
 						// (even, odd) pair

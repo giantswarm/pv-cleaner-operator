@@ -195,7 +195,6 @@ func (c *Controller) deleteFunc(ctx context.Context, obj interface{}) {
 
 	} else if err != nil {
 		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
-<<<<<<< HEAD
 		return
 	}
 
@@ -211,17 +210,6 @@ func (c *Controller) deleteFunc(ctx context.Context, obj interface{}) {
 		}
 	}
 
-=======
-		return
-	}
-
-	ctx, err = rs.InitCtx(ctx, obj)
-	if err != nil {
-		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
-		return
-	}
-
->>>>>>> master
 	hasFinalizer, err := c.hasFinalizer(ctx, obj)
 	if err != nil {
 		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
@@ -252,7 +240,6 @@ func (c *Controller) deleteFunc(ctx context.Context, obj interface{}) {
 func (c *Controller) ProcessEvents(ctx context.Context, deleteChan chan watch.Event, updateChan chan watch.Event, errChan chan error) error {
 	loop := -1
 
-<<<<<<< HEAD
 	for {
 		loop++
 
@@ -277,65 +264,6 @@ func (c *Controller) ProcessEvents(ctx context.Context, deleteChan chan watch.Ev
 				} else {
 					ctx = setLoggerCtxValue(ctx, loggerKeyObject, accessor.GetSelfLink())
 					ctx = setLoggerCtxValue(ctx, loggerKeyVersion, accessor.GetResourceVersion())
-=======
-	operation := func() error {
-		for {
-			loop++
-
-			// Set loop specific logger context.
-			{
-				ctx = setLoggerCtxValue(ctx, loggerKeyLoop, strconv.Itoa(loop))
-			}
-
-			select {
-			case e := <-deleteChan:
-				event := "delete"
-
-				t := prometheus.NewTimer(controllerHistogram.WithLabelValues(event))
-
-				// Set event specific logger context.
-				{
-					ctx = setLoggerCtxValue(ctx, loggerKeyEvent, event)
-
-					accessor, err := meta.Accessor(e.Object)
-					if err != nil {
-						c.logger.LogCtx(ctx, "level", "warning", "message", fmt.Sprintf("cannot create accessor %T", e.Object), "stack", fmt.Sprintf("%#v", err))
-					} else {
-						ctx = setLoggerCtxValue(ctx, loggerKeyObject, accessor.GetSelfLink())
-						ctx = setLoggerCtxValue(ctx, loggerKeyVersion, accessor.GetResourceVersion())
-					}
-				}
-
-				c.deleteFunc(ctx, e.Object)
-
-				t.ObserveDuration()
-			case e := <-updateChan:
-				event := "update"
-
-				t := prometheus.NewTimer(controllerHistogram.WithLabelValues(event))
-
-				// Set event specific logger context.
-				{
-					ctx = setLoggerCtxValue(ctx, loggerKeyEvent, event)
-
-					accessor, err := meta.Accessor(e.Object)
-					if err != nil {
-						c.logger.LogCtx(ctx, "level", "warning", "message", fmt.Sprintf("cannot create accessor %T", e.Object), "stack", fmt.Sprintf("%#v", err))
-					} else {
-						ctx = setLoggerCtxValue(ctx, loggerKeyObject, accessor.GetSelfLink())
-						ctx = setLoggerCtxValue(ctx, loggerKeyVersion, accessor.GetResourceVersion())
-					}
-				}
-
-				c.updateFunc(ctx, e.Object)
-
-				t.ObserveDuration()
-			case err := <-errChan:
-				if IsStatusForbidden(err) {
-					return microerror.Maskf(statusForbiddenError, "controller might be missing RBAC rule for %s CRD", c.crd.Name)
-				} else if err != nil {
-					return microerror.Mask(err)
->>>>>>> master
 				}
 			}
 
@@ -406,7 +334,6 @@ func (c *Controller) updateFunc(ctx context.Context, obj interface{}) {
 
 	} else if err != nil {
 		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
-<<<<<<< HEAD
 		return
 	}
 
@@ -422,17 +349,6 @@ func (c *Controller) updateFunc(ctx context.Context, obj interface{}) {
 		}
 	}
 
-=======
-		return
-	}
-
-	ctx, err = rs.InitCtx(ctx, obj)
-	if err != nil {
-		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
-		return
-	}
-
->>>>>>> master
 	ok, err := c.addFinalizer(ctx, obj)
 	if IsInvalidRESTClient(err) {
 		panic("invalid REST client configured for controller")

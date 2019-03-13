@@ -49,16 +49,7 @@ type Request struct {
 	client              *Client
 	bodyBuf             *bytes.Buffer
 	multipartFiles      []*File
-	multipartFields     []*MultipartField
-}
-
-// Context method returns the Context if its already set in request
-// otherwise it creates new one using `context.Background()`.
-func (r *Request) Context() context.Context {
-	if r.ctx == nil {
-		return context.Background()
-	}
-	return r.ctx
+	multipartFields     []*multipartField
 }
 
 // Context method returns the Context if its already set in request

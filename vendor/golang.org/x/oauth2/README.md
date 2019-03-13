@@ -19,8 +19,6 @@ See godoc for further documentation and examples.
 * [godoc.org/golang.org/x/oauth2](http://godoc.org/golang.org/x/oauth2)
 * [godoc.org/golang.org/x/oauth2/google](http://godoc.org/golang.org/x/oauth2/google)
 
-<<<<<<< HEAD
-=======
 
 ## App Engine
 
@@ -72,7 +70,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
->>>>>>> master
 ## Policy for new packages
 
 We no longer accept new provider-specific packages in this repo. For

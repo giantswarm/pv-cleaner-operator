@@ -26,15 +26,6 @@ import (
 // Deprecated: Use context.Background() or context.TODO() instead.
 var NoContext = context.TODO()
 
-<<<<<<< HEAD
-// RegisterBrokenAuthHeaderProvider previously did something. It is now a no-op.
-//
-// Deprecated: this function no longer does anything. Caller code that
-// wants to avoid potential extra HTTP requests made during
-// auto-probing of the provider's auth style should set
-// Endpoint.AuthStyle.
-func RegisterBrokenAuthHeaderProvider(tokenURL string) {}
-=======
 // RegisterBrokenAuthHeaderProvider registers an OAuth2 server
 // identified by the tokenURL prefix as an OAuth2 implementation
 // which doesn't support the HTTP Basic authentication
@@ -46,7 +37,6 @@ func RegisterBrokenAuthHeaderProvider(tokenURL string) {}
 func RegisterBrokenAuthHeaderProvider(tokenURL string) {
 	internal.RegisterBrokenAuthHeaderProvider(tokenURL)
 }
->>>>>>> master
 
 // Config describes a typical 3-legged OAuth2 flow, with both the
 // client application information and the server's endpoint URLs.
@@ -81,47 +71,13 @@ type TokenSource interface {
 	Token() (*Token, error)
 }
 
-<<<<<<< HEAD
-// Endpoint represents an OAuth 2.0 provider's authorization and token
-=======
 // Endpoint contains the OAuth 2.0 provider's authorization and token
->>>>>>> master
 // endpoint URLs.
 type Endpoint struct {
 	AuthURL  string
 	TokenURL string
-<<<<<<< HEAD
-
-	// AuthStyle optionally specifies how the endpoint wants the
-	// client ID & client secret sent. The zero value means to
-	// auto-detect.
-	AuthStyle AuthStyle
 }
 
-// AuthStyle represents how requests for tokens are authenticated
-// to the server.
-type AuthStyle int
-
-const (
-	// AuthStyleAutoDetect means to auto-detect which authentication
-	// style the provider wants by trying both ways and caching
-	// the successful way for the future.
-	AuthStyleAutoDetect AuthStyle = 0
-
-	// AuthStyleInParams sends the "client_id" and "client_secret"
-	// in the POST body as application/x-www-form-urlencoded parameters.
-	AuthStyleInParams AuthStyle = 1
-
-	// AuthStyleInHeader sends the client_id and client_password
-	// using HTTP Basic Authorization. This is an optional style
-	// described in the OAuth2 RFC 6749 section 2.3.1.
-	AuthStyleInHeader AuthStyle = 2
-)
-
-=======
-}
-
->>>>>>> master
 var (
 	// AccessTypeOnline and AccessTypeOffline are options passed
 	// to the Options.AuthCodeURL method. They modify the
@@ -168,11 +124,7 @@ func SetAuthURLParam(key, value string) AuthCodeOption {
 //
 // Opts may include AccessTypeOnline or AccessTypeOffline, as well
 // as ApprovalForce.
-<<<<<<< HEAD
-// It can also be used to pass the PKCE challenge.
-=======
 // It can also be used to pass the PKCE challange.
->>>>>>> master
 // See https://www.oauth.com/oauth2-servers/pkce/ for more info.
 func (c *Config) AuthCodeURL(state string, opts ...AuthCodeOption) string {
 	var buf bytes.Buffer

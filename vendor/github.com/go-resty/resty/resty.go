@@ -6,8 +6,4 @@
 package resty
 
 // Version # of resty
-<<<<<<< HEAD
-const Version = "1.12.0"
-=======
 const Version = "1.11.0"
->>>>>>> master
