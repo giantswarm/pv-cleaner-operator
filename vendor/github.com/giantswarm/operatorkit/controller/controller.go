@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/giantswarm/micrologger/loggermeta"
 	"github.com/prometheus/client_golang/prometheus"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
@@ -23,7 +25,12 @@ import (
 )
 
 const (
-	loggerResourceKey = "resource"
+	loggerKeyController = "controller"
+	loggerKeyEvent      = "event"
+	loggerKeyLoop       = "loop"
+	loggerKeyObject     = "object"
+	loggerKeyResource   = "resource"
+	loggerKeyVersion    = "version"
 )
 
 type Config struct {
@@ -70,10 +77,11 @@ type Controller struct {
 	logger       micrologger.Logger
 	resourceSets []*ResourceSet
 
-	bootOnce       sync.Once
-	booted         chan struct{}
-	errorCollector chan error
-	mutex          sync.Mutex
+	bootOnce               sync.Once
+	booted                 chan struct{}
+	errorCollector         chan error
+	removedFinalizersCache *stringCache
+	mutex                  sync.Mutex
 
 	backOffFactory func() backoff.Interface
 	name           string
@@ -112,10 +120,11 @@ func New(config Config) (*Controller, error) {
 		logger:       config.Logger,
 		resourceSets: config.ResourceSets,
 
-		bootOnce:       sync.Once{},
-		booted:         make(chan struct{}),
-		errorCollector: make(chan error, 1),
-		mutex:          sync.Mutex{},
+		bootOnce:               sync.Once{},
+		booted:                 make(chan struct{}),
+		errorCollector:         make(chan error, 1),
+		removedFinalizersCache: newStringCache(config.Informer.ResyncPeriod() * 3),
+		mutex:                  sync.Mutex{},
 
 		backOffFactory: config.BackOffFactory,
 		name:           config.Name,
@@ -124,8 +133,8 @@ func New(config Config) (*Controller, error) {
 	return c, nil
 }
 
-func (c *Controller) Boot() {
-	ctx := context.Background()
+func (c *Controller) Boot(ctx context.Context) {
+	ctx = setLoggerCtxValue(ctx, loggerKeyController, c.name)
 
 	c.bootOnce.Do(func() {
 		operation := func() error {
@@ -154,7 +163,10 @@ func (c *Controller) Booted() chan struct{} {
 // DeleteFunc executes the controller's ProcessDelete function.
 func (c *Controller) DeleteFunc(obj interface{}) {
 	ctx := context.Background()
+	c.deleteFunc(ctx, obj)
+}
 
+func (c *Controller) deleteFunc(ctx context.Context, obj interface{}) {
 	// DeleteFunc/UpdateFunc is synchronized to make sure only one of them is
 	// executed at a time. DeleteFunc/UpdateFunc is not thread safe. This is
 	// important because the source of truth for an operator are the reconciled
@@ -173,39 +185,46 @@ func (c *Controller) DeleteFunc(obj interface{}) {
 		// trying to reconcile this object over and over.
 		err = c.removeFinalizer(ctx, obj)
 		if err != nil {
-			c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+			c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 			return
 		}
 
-		c.logger.Log("level", "debug", "message", "did not find any resource set")
-		c.logger.Log("level", "debug", "message", "canceling reconciliation")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "did not find any resource set")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "canceling reconciliation")
 		return
 
 	} else if err != nil {
-		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
-		return
-	}
-
-	ctx, err = rs.InitCtx(ctx, obj)
-	if err != nil {
-		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
 	{
-		meta, ok := loggermeta.FromContext(ctx)
-		if !ok {
-			meta = loggermeta.New()
+		// Memorize the old context. We need to use it for logging in
+		// case of InitCtx failure because the context returned by
+		// failing InitCtx can be nil.
+		oldCtx := ctx
+		ctx, err = rs.InitCtx(ctx, obj)
+		if err != nil {
+			c.logger.LogCtx(oldCtx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+			return
 		}
-		meta.KeyVals["event"] = "delete"
-
-		ctx = loggermeta.NewContext(ctx, meta)
 	}
 
-	err = ProcessDelete(ctx, obj, rs.Resources())
+	hasFinalizer, err := c.hasFinalizer(ctx, obj)
 	if err != nil {
-		c.errorCollector <- err
 		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		return
+	}
+	if hasFinalizer {
+		err = ProcessDelete(ctx, obj, rs.Resources())
+		if err != nil {
+			c.errorCollector <- err
+			c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+			return
+		}
+	} else {
+		c.logger.LogCtx(ctx, "level", "debug", "message", "did not find any finalizer")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "canceling reconciliation")
 		return
 	}
 
@@ -219,44 +238,84 @@ func (c *Controller) DeleteFunc(obj interface{}) {
 // ProcessEvents takes the event channels created by the operatorkit informer
 // and executes the controller's event functions accordingly.
 func (c *Controller) ProcessEvents(ctx context.Context, deleteChan chan watch.Event, updateChan chan watch.Event, errChan chan error) error {
-	operation := func() error {
-		for {
-			select {
-			case e := <-deleteChan:
-				t := prometheus.NewTimer(controllerHistogram.WithLabelValues("delete"))
-				c.DeleteFunc(e.Object)
-				t.ObserveDuration()
-			case e := <-updateChan:
-				t := prometheus.NewTimer(controllerHistogram.WithLabelValues("update"))
-				c.UpdateFunc(nil, e.Object)
-				t.ObserveDuration()
-			case err := <-errChan:
-				if IsStatusForbidden(err) {
-					return microerror.Maskf(statusForbiddenError, "controller might be missing RBAC rule for %s CRD", c.crd.Name)
-				} else if err != nil {
-					return microerror.Mask(err)
+	loop := -1
+
+	for {
+		loop++
+
+		// Set loop specific logger context.
+		{
+			ctx = setLoggerCtxValue(ctx, loggerKeyLoop, strconv.Itoa(loop))
+		}
+
+		select {
+		case e := <-deleteChan:
+			event := "delete"
+
+			t := prometheus.NewTimer(controllerHistogram.WithLabelValues(event))
+
+			// Set event specific logger context.
+			{
+				ctx = setLoggerCtxValue(ctx, loggerKeyEvent, event)
+
+				accessor, err := meta.Accessor(e.Object)
+				if err != nil {
+					c.logger.LogCtx(ctx, "level", "error", "message", fmt.Sprintf("failed to create accessor %T", e.Object), "stack", fmt.Sprintf("%#v", err))
+				} else {
+					ctx = setLoggerCtxValue(ctx, loggerKeyObject, accessor.GetSelfLink())
+					ctx = setLoggerCtxValue(ctx, loggerKeyVersion, accessor.GetResourceVersion())
 				}
-			case <-ctx.Done():
-				return nil
 			}
+
+			c.logger.LogCtx(ctx, "level", "debug", "message", "reconciling object")
+			c.deleteFunc(ctx, e.Object)
+			c.logger.LogCtx(ctx, "level", "debug", "message", "reconciled object")
+
+			t.ObserveDuration()
+		case e := <-updateChan:
+			event := "update"
+
+			t := prometheus.NewTimer(controllerHistogram.WithLabelValues(event))
+
+			// Set event specific logger context.
+			{
+				ctx = setLoggerCtxValue(ctx, loggerKeyEvent, event)
+
+				accessor, err := meta.Accessor(e.Object)
+				if err != nil {
+					c.logger.LogCtx(ctx, "level", "error", "message", fmt.Sprintf("failed to create accessor %T", e.Object), "stack", fmt.Sprintf("%#v", err))
+				} else {
+					ctx = setLoggerCtxValue(ctx, loggerKeyObject, accessor.GetSelfLink())
+					ctx = setLoggerCtxValue(ctx, loggerKeyVersion, accessor.GetResourceVersion())
+				}
+			}
+
+			c.logger.LogCtx(ctx, "level", "debug", "message", "reconciling object")
+			c.updateFunc(ctx, e.Object)
+			c.logger.LogCtx(ctx, "level", "debug", "message", "reconciled object")
+
+			t.ObserveDuration()
+		case err := <-errChan:
+			if IsStatusForbidden(err) {
+				c.logger.LogCtx(ctx, "level", "error", "message", fmt.Sprintf("controller might be missing RBAC rule for %s CRD", c.crd.Name), "stack", fmt.Sprintf("%#v", err))
+			} else if err != nil {
+				c.logger.LogCtx(ctx, "level", "error", "message", "failed to watch object", "stack", fmt.Sprintf("%#v", err))
+			}
+
+			time.Sleep(time.Second)
+		case <-ctx.Done():
+			return nil
 		}
 	}
-
-	notifier := backoff.NewNotifier(c.logger, ctx)
-
-	err := backoff.RetryNotify(operation, c.backOffFactory(), notifier)
-	if err != nil {
-		return microerror.Mask(err)
-	}
-
-	return nil
 }
 
 // UpdateFunc executes the controller's ProcessUpdate function.
 func (c *Controller) UpdateFunc(oldObj, newObj interface{}) {
 	ctx := context.Background()
-	obj := newObj
+	c.updateFunc(ctx, newObj)
+}
 
+func (c *Controller) updateFunc(ctx context.Context, obj interface{}) {
 	// DeleteFunc/UpdateFunc is synchronized to make sure only one of them is
 	// executed at a time. DeleteFunc/UpdateFunc is not thread safe. This is
 	// important because the source of truth for an operator are the reconciled
@@ -269,32 +328,28 @@ func (c *Controller) UpdateFunc(oldObj, newObj interface{}) {
 	if IsNoResourceSet(err) {
 		// In case the resource router is not able to find any resource set to
 		// handle the reconciled runtime object, we stop here.
-		c.logger.Log("level", "debug", "message", "did not find any resource set")
-		c.logger.Log("level", "debug", "message", "canceling reconciliation")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "did not find any resource set")
+		c.logger.LogCtx(ctx, "level", "debug", "message", "canceling reconciliation")
 		return
 
 	} else if err != nil {
-		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
-		return
-	}
-
-	ctx, err = rs.InitCtx(ctx, obj)
-	if err != nil {
-		c.logger.Log("level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+		c.logger.LogCtx(ctx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
 		return
 	}
 
 	{
-		meta, ok := loggermeta.FromContext(ctx)
-		if !ok {
-			meta = loggermeta.New()
+		// Memorize the old context. We need to use it for logging in
+		// case of InitCtx failure because the context returned by
+		// failing InitCtx can be nil.
+		oldCtx := ctx
+		ctx, err = rs.InitCtx(ctx, obj)
+		if err != nil {
+			c.logger.LogCtx(oldCtx, "level", "error", "message", "stop reconciliation due to error", "stack", fmt.Sprintf("%#v", err))
+			return
 		}
-		meta.KeyVals["event"] = "update"
-
-		ctx = loggermeta.NewContext(ctx, meta)
 	}
 
-	ok, err := c.addFinalizer(obj)
+	ok, err := c.addFinalizer(ctx, obj)
 	if IsInvalidRESTClient(err) {
 		panic("invalid REST client configured for controller")
 	} else if err != nil {
@@ -364,10 +419,15 @@ func (c *Controller) bootWithError(ctx context.Context) error {
 
 		deleteChan, updateChan, errChan := c.informer.Watch(ctx)
 		close(c.booted)
+
+		c.logger.LogCtx(ctx, "level", "debug", "message", "processing object events")
+
 		err := c.ProcessEvents(ctx, deleteChan, updateChan, errChan)
 		if err != nil {
 			return microerror.Mask(err)
 		}
+
+		c.logger.LogCtx(ctx, "level", "debug", "message", "processed object events")
 	}
 
 	return nil
@@ -420,10 +480,8 @@ func ProcessDelete(ctx context.Context, obj interface{}, resources []Resource) e
 
 	ctx = reconciliationcanceledcontext.NewContext(ctx, make(chan struct{}))
 
-	defer unsetLoggerCtxValue(ctx, loggerResourceKey)
-
 	for _, r := range resources {
-		ctx = setLoggerCtxValue(ctx, loggerResourceKey, r.Name())
+		ctx = setLoggerCtxValue(ctx, loggerKeyResource, r.Name())
 		ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
 
 		err := r.EnsureDeleted(ctx, obj)
@@ -463,10 +521,8 @@ func ProcessUpdate(ctx context.Context, obj interface{}, resources []Resource) e
 
 	ctx = reconciliationcanceledcontext.NewContext(ctx, make(chan struct{}))
 
-	defer unsetLoggerCtxValue(ctx, loggerResourceKey)
-
 	for _, r := range resources {
-		ctx = setLoggerCtxValue(ctx, loggerResourceKey, r.Name())
+		ctx = setLoggerCtxValue(ctx, loggerKeyResource, r.Name())
 		ctx = resourcecanceledcontext.NewContext(ctx, make(chan struct{}))
 
 		err := r.EnsureCreated(ctx, obj)
@@ -488,16 +544,6 @@ func setLoggerCtxValue(ctx context.Context, key, value string) context.Context {
 		m = loggermeta.New()
 	}
 	m.KeyVals[key] = value
-
-	return loggermeta.NewContext(ctx, m)
-}
-
-func unsetLoggerCtxValue(ctx context.Context, key string) context.Context {
-	m, ok := loggermeta.FromContext(ctx)
-	if !ok {
-		m = loggermeta.New()
-	}
-	delete(m.KeyVals, key)
 
 	return loggermeta.NewContext(ctx, m)
 }

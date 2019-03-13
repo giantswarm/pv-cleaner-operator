@@ -38,12 +38,12 @@
   branch = "master"
 
 [[constraint]]
-  branch = "master"
+  branch = "kubeconfig"
   name = "github.com/giantswarm/operatorkit"
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.10.4"
+  version = "kubernetes-1.13.2"
 
 
 
