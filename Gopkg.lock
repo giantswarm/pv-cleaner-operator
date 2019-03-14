@@ -96,7 +96,7 @@
   revision = "9e733616eec2897b81d28d6c41161a8f410158d6"
 
 [[projects]]
-  branch = "kubeconfig"
+  branch = "master"
   name = "github.com/giantswarm/operatorkit"
   packages = [
     "client/k8scrdclient",
@@ -115,7 +115,7 @@
     "informer",
     "informer/collector"
   ]
-  revision = "031a73d98e0a1d566b231919c97cbd823a5d3729"
+  revision = "67aba158b01a7eb22405c4a5ad643853f29cb5f3"
 
 [[projects]]
   branch = "master"
@@ -720,6 +720,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "618e389f8a29f2bc6222da81e7aef31981e85f5c4fa2a7f9c12ff7d21825d472"
+  inputs-digest = "5959230c9010fe15decb60d237af71d7fe47c5e44c63aa9978d5cfd7a333ed8b"
   solver-name = "gps-cdcl"
   solver-version = 1
