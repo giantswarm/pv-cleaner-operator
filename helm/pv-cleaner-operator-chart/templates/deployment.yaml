@@ -23,6 +23,7 @@ spec:
           items:
           - key: config.yml
             path: config.yml
+      serviceAccountName: pv-cleaner-operator
       containers:
       - name: pv-cleaner-operator
         image: quay.io/giantswarm/pv-cleaner-operator:[[ .SHA ]]
