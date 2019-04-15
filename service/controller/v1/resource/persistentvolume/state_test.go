@@ -18,23 +18,6 @@ func Test_Resource_RecyclePersistentVolume_GetCurrentState(t *testing.T) {
 		expectedRecyclePersistentVolume interface{}
 	}{
 		{
-			description: "recycle annotation is empty, expected recycle volume with 'Recycled' annotation",
-			obj: &apiv1.PersistentVolume{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "TestPersistentVolume",
-					Annotations: map[string]string{},
-				},
-				Status: apiv1.PersistentVolumeStatus{
-					Phase: "Available",
-				},
-			},
-			expectedRecyclePersistentVolume: &RecyclePersistentVolume{
-				Name:         "TestPersistentVolume",
-				State:        "Available",
-				RecycleState: recycled,
-			},
-		},
-		{
 			description: "recycle annotation is 'Cleaning', expected recycle volume with `Cleaning` annotation",
 			obj: &apiv1.PersistentVolume{
 				ObjectMeta: metav1.ObjectMeta{
