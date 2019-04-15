@@ -21,6 +21,7 @@ const (
 
 const (
 	cleaning string = "Cleaning"
+	teardown string = "Teardown"
 	recycled string = "Recycled"
 )
 
@@ -64,7 +65,7 @@ func (r *Resource) Name() string {
 func getVolumeAnnotation(pv *apiv1.PersistentVolume, annotation string) (annotationValue string) {
 	annotationValue, ok := pv.Annotations[annotation]
 	if !ok {
-		annotationValue = recycled
+		annotationValue = ""
 	}
 	return annotationValue
 }

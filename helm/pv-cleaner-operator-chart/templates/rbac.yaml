@@ -8,6 +8,7 @@ rules:
     resources:
       - persistentvolumes
       - persistentvolumeclaims
+      - pods
     verbs:
       - "*"
   - apiGroups:

@@ -9,6 +9,12 @@ import (
 	"github.com/giantswarm/operatorkit/controller"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+)
+
+const (
+	pvcTerminatingPhase = "Terminating"
+	jobLabel            = "job-name"
 )
 
 // NewUpdatePatch returns patch to apply on updated persistent volume.
@@ -31,6 +37,7 @@ func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desire
 //   * ReleasedRecycled - initial state of volume after claim is deleted; volume is recreated at this step
 //   * AvailableCleaning - volume ready for bounding to cleanup claim
 //   * BoundCleaning - volume claim is ready for mounting into cleanup job
+//   * BoundTeardown - waiting for leftovers to be cleaned up
 //   * ReleasedCleaning - volume claim was succesfully cleaned up, volume can be recreated
 //   * AvailableRecycled - desired state of the volume
 func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState interface{}) error {
@@ -50,13 +57,11 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 	}
 
 	switch combinedState := string(rpv.State) + rpv.RecycleState; combinedState {
+	case "Released":
+		fallthrough
 	case "ReleasedRecycled":
-		pv, err := r.newRecycleStateAnnotation(pv, recycled)
+		pv, err := r.newRecycleStateAnnotation(pv, cleaning)
 		_, err = r.k8sClient.Core().PersistentVolumes().Update(pv)
-		if err != nil {
-			return microerror.Mask(err)
-		}
-		err = r.k8sClient.Core().PersistentVolumes().Delete(pv.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			return microerror.Mask(err)
 		}
@@ -76,6 +81,11 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 			return microerror.Mask(err)
 		}
 
+		if pvc.ObjectMeta.DeletionTimestamp != nil {
+			r.logger.LogCtx(ctx, "pvc", pvcName, "waiting for pvc to release a pv", pv.Name)
+			return nil
+		}
+
 		cleanupJobDef := newCleanupJob(pvc)
 		cleanupJob, err := r.k8sClient.Batch().Jobs("kube-system").Create(cleanupJobDef)
 		if errors.IsAlreadyExists(err) {
@@ -92,27 +102,30 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 			return nil
 		}
 
-		if err := r.k8sClient.Batch().Jobs("kube-system").Delete(cleanupJob.Name, &metav1.DeleteOptions{}); err != nil {
+		err = r.k8sClient.Batch().Jobs("kube-system").Delete(cleanupJob.Name, &metav1.DeleteOptions{})
+		if err != nil {
 			return microerror.Mask(err)
 		}
 
-		r.logger.LogCtx(ctx, "removing finalizer from pvc %#q", pvc.Name)
-		pvc.ObjectMeta.Finalizers = []string{}
-		if _, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Update(pvc); err != nil {
+		podSelector := labels.Set(map[string]string{jobLabel: cleanupJob.Name})
+		listOptions := metav1.ListOptions{LabelSelector: podSelector.AsSelector().String()}
+		err = r.k8sClient.Core().Pods("kube-system").DeleteCollection(&metav1.DeleteOptions{}, listOptions)
+		if err != nil {
 			return microerror.Mask(err)
 		}
 
 		if err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
 			return microerror.Mask(err)
 		}
-	case "ReleasedCleaning":
-		r.logger.LogCtx(ctx, "removing finalizer from pv %#q", pv.Name)
-		pv.ObjectMeta.Finalizers = []string{}
-		if _, err := r.k8sClient.Core().PersistentVolumes().Update(pv); err != nil {
+
+		pv, err := r.newRecycleStateAnnotation(pv, teardown)
+		_, err = r.k8sClient.Core().PersistentVolumes().Update(pv)
+		if err != nil {
 			return microerror.Mask(err)
 		}
-
-		err = r.k8sClient.Core().PersistentVolumes().Delete(pv.Name, &metav1.DeleteOptions{})
+	case "ReleasedTeardown":
+		pv, err := r.newRecycleStateAnnotation(pv, recycled)
+		_, err = r.k8sClient.Core().PersistentVolumes().Update(pv)
 		if err != nil {
 			return microerror.Mask(err)
 		}
