@@ -16,7 +16,7 @@ rules:
       - pods
     verbs:
       - list
-      - delete
+      - deletecollection
   - apiGroups:
       - batch
     resources:
