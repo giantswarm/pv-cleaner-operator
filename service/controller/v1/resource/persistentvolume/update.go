@@ -67,7 +67,7 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		}
 	case "AvailableCleaning":
 		pvcdef := newPvc(pv)
-		_, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Create(pvcdef)
+		_, err := r.k8sClient.Core().PersistentVolumeClaims(metav1.NamespaceSystem).Create(pvcdef)
 		if errors.IsAlreadyExists(err) {
 			return nil
 		}
@@ -76,7 +76,7 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		}
 	case "BoundCleaning":
 		pvcName := fmt.Sprintf("pv-cleaner-claim-%s", pv.Name)
-		pvc, err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Get(pvcName, metav1.GetOptions{})
+		pvc, err := r.k8sClient.Core().PersistentVolumeClaims(metav1.NamespaceSystem).Get(pvcName, metav1.GetOptions{})
 		if err != nil {
 			return microerror.Mask(err)
 		}
@@ -87,9 +87,9 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 		}
 
 		cleanupJobDef := newCleanupJob(pvc)
-		cleanupJob, err := r.k8sClient.Batch().Jobs("kube-system").Create(cleanupJobDef)
+		cleanupJob, err := r.k8sClient.Batch().Jobs(metav1.NamespaceSystem).Create(cleanupJobDef)
 		if errors.IsAlreadyExists(err) {
-			cleanupJob, err = r.k8sClient.Batch().Jobs("kube-system").Get(cleanupJobDef.Name, metav1.GetOptions{})
+			cleanupJob, err = r.k8sClient.Batch().Jobs(metav1.NamespaceSystem).Get(cleanupJobDef.Name, metav1.GetOptions{})
 			if err != nil {
 				return microerror.Mask(err)
 			}
@@ -102,19 +102,19 @@ func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateState inter
 			return nil
 		}
 
-		err = r.k8sClient.Batch().Jobs("kube-system").Delete(cleanupJob.Name, &metav1.DeleteOptions{})
+		err = r.k8sClient.Batch().Jobs(metav1.NamespaceSystem).Delete(cleanupJob.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			return microerror.Mask(err)
 		}
 
 		podSelector := labels.Set(map[string]string{jobLabel: cleanupJob.Name})
 		listOptions := metav1.ListOptions{LabelSelector: podSelector.AsSelector().String()}
-		err = r.k8sClient.Core().Pods("kube-system").DeleteCollection(&metav1.DeleteOptions{}, listOptions)
+		err = r.k8sClient.Core().Pods(metav1.NamespaceSystem).DeleteCollection(&metav1.DeleteOptions{}, listOptions)
 		if err != nil {
 			return microerror.Mask(err)
 		}
 
-		if err := r.k8sClient.Core().PersistentVolumeClaims("kube-system").Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
+		if err := r.k8sClient.Core().PersistentVolumeClaims(metav1.NamespaceSystem).Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
 			return microerror.Mask(err)
 		}
 
