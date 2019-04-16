@@ -21,6 +21,7 @@ const (
 
 const (
 	cleaning string = "Cleaning"
+	teardown string = "Teardown"
 	recycled string = "Recycled"
 )
 
@@ -64,7 +65,7 @@ func (r *Resource) Name() string {
 func getVolumeAnnotation(pv *apiv1.PersistentVolume, annotation string) (annotationValue string) {
 	annotationValue, ok := pv.Annotations[annotation]
 	if !ok {
-		annotationValue = recycled
+		annotationValue = ""
 	}
 	return annotationValue
 }
@@ -158,7 +159,7 @@ func newPvc(pv *apiv1.PersistentVolume) *apiv1.PersistentVolumeClaim {
 	pvc := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("pv-cleaner-claim-%s", pv.Name),
-			Namespace: "kube-system",
+			Namespace: metav1.NamespaceSystem,
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
 			AccessModes:      pv.Spec.AccessModes,

@@ -1,0 +1,6 @@
+clusterRoleBindingName: pv-cleaner-operator
+clusterRoleBindingNamePSP: pv-cleaner-operator-psp
+clusterRoleName: pv-cleaner-operator
+clusterRoleNamePSP: pv-cleaner-operator-psp
+namespace: giantswarm
+pspName: pv-cleaner-operator-psp
