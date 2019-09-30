@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/giantswarm/pv-cleaner-operator/service/controller/v1"
+	v1 "github.com/giantswarm/pv-cleaner-operator/service/controller/v1"
 )
 
 const (
@@ -46,7 +46,7 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 	{
 		c := informer.Config{
 			Logger:  config.Logger,
-			Watcher: config.K8sClient.Core().PersistentVolumes(),
+			Watcher: config.K8sClient.CoreV1().PersistentVolumes(),
 
 			ListOptions: metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", cleanupLabel, "true"),
