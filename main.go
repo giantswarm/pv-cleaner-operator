@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/giantswarm/pv-cleaner-operator/flag"
+	"github.com/giantswarm/pv-cleaner-operator/pkg/project"
 	"github.com/giantswarm/pv-cleaner-operator/server"
 	"github.com/giantswarm/pv-cleaner-operator/service"
 )
@@ -19,11 +20,7 @@ const (
 )
 
 var (
-	description string     = "The pv-cleaner-operator cleanup released k8s persistent volumes"
-	f           *flag.Flag = flag.New()
-	gitCommit   string     = notAvailable
-	name        string     = "pv-cleaner-operator"
-	source      string     = "https://github.com/giantswarm/pv-cleaner-operator"
+	f *flag.Flag = flag.New()
 )
 
 func panicOnErr(err error) {
@@ -57,16 +54,17 @@ func mainWithError() error {
 		// Create a new custom service which implements business logic.
 		var newService *service.Service
 		{
-			serviceConfig := service.Config{}
+			serviceConfig := service.Config{
+				Flag:   f,
+				Logger: newLogger,
+				Viper:  v,
 
-			serviceConfig.Flag = f
-			serviceConfig.Logger = newLogger
-			serviceConfig.Viper = v
-
-			serviceConfig.Description = description
-			serviceConfig.GitCommit = gitCommit
-			serviceConfig.Name = name
-			serviceConfig.Source = source
+				Description: project.Description(),
+				GitCommit:   project.GitSHA(),
+				ProjectName: project.Name(),
+				Source:      project.Source(),
+				Version:     project.Version(),
+			}
 
 			newService, err = service.New(serviceConfig)
 			if err != nil {
@@ -100,10 +98,11 @@ func mainWithError() error {
 			Logger:        newLogger,
 			ServerFactory: newServerFactory,
 
-			Description: description,
-			GitCommit:   gitCommit,
-			Name:        name,
-			Source:      source,
+			Description: project.Description(),
+			GitCommit:   project.GitSHA(),
+			Name:        project.Name(),
+			Source:      project.Source(),
+			Version:     project.Version(),
 		}
 
 		newCommand, err = command.New(c)

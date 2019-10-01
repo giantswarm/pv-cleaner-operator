@@ -26,8 +26,9 @@ type Config struct {
 
 	Description string
 	GitCommit   string
-	Name        string
+	ProjectName string
 	Source      string
+	Version     string
 }
 
 type Service struct {
@@ -81,9 +82,10 @@ func New(config Config) (*Service, error) {
 	var persistentVolumeController *controller.PersistentVolume
 	{
 		c := controller.PersistentVolumeConfig{
-			K8sClient:   k8sClient,
-			Logger:      config.Logger,
-			ProjectName: config.Name,
+			K8sClient: k8sClient,
+			Logger:    config.Logger,
+
+			ProjectName: config.ProjectName,
 		}
 
 		persistentVolumeController, err = controller.NewPersistentVolume(c)
@@ -95,13 +97,15 @@ func New(config Config) (*Service, error) {
 
 	var versionService *version.Service
 	{
-		versionConfig := version.Config{}
-		versionConfig.Description = config.Description
-		versionConfig.GitCommit = config.GitCommit
-		versionConfig.Name = config.Name
-		versionConfig.Source = config.Source
+		c := version.Config{
+			Description: config.Description,
+			GitCommit:   config.GitCommit,
+			Name:        config.ProjectName,
+			Source:      config.Source,
+			Version:     config.Version,
+		}
 
-		versionService, err = version.New(versionConfig)
+		versionService, err = version.New(c)
 		if err != nil {
 			return nil, microerror.Maskf(err, "version.New")
 		}
