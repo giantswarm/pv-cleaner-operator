@@ -4,8 +4,9 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/controller"
-	"github.com/giantswarm/operatorkit/controller/resource/metricsresource"
-	"github.com/giantswarm/operatorkit/controller/resource/retryresource"
+	"github.com/giantswarm/operatorkit/resource"
+	"github.com/giantswarm/operatorkit/resource/wrapper/metricsresource"
+	"github.com/giantswarm/operatorkit/resource/wrapper/retryresource"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/pv-cleaner-operator/service/controller/v1/resource/persistentvolume"
@@ -36,7 +37,7 @@ func NewResourceSet(config ResourceSetConfig) (*controller.ResourceSet, error) {
 		return nil, microerror.Maskf(invalidConfigError, "config.ProjectName must not be empty")
 	}
 
-	var persistentVolumeResource controller.Resource
+	var persistentVolumeResource resource.Interface
 	{
 		c := persistentvolume.Config{
 			K8sClient: config.K8sClient,
@@ -54,7 +55,7 @@ func NewResourceSet(config ResourceSetConfig) (*controller.ResourceSet, error) {
 		}
 	}
 
-	resources := []controller.Resource{
+	resources := []resource.Interface{
 		persistentVolumeResource,
 	}
 
