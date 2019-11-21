@@ -3,11 +3,11 @@ package persistentvolume
 import (
 	"context"
 
-	"github.com/giantswarm/operatorkit/controller"
+	"github.com/giantswarm/operatorkit/resource/crud"
 )
 
 // NewDeletePatch returns patch to apply on deleted persistent volume.
-func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*controller.Patch, error) {
+func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*crud.Patch, error) {
 	return nil, nil
 }
 

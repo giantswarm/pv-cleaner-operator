@@ -3,11 +3,11 @@ package persistentvolume
 import (
 	"context"
 
-	"github.com/giantswarm/operatorkit/controller"
+	"github.com/giantswarm/operatorkit/resource/crud"
 )
 
 // NewCreatePatch is not used during persistent volume reconcile.
-func (r *Resource) NewCreatePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*controller.Patch, error) {
+func (r *Resource) NewCreatePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*crud.Patch, error) {
 	return nil, nil
 }
 

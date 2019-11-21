@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/giantswarm/k8sclient/k8srestconfig"
 	"github.com/giantswarm/microendpoint/service/version"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
-	"github.com/giantswarm/operatorkit/client/k8srestconfig"
 	"github.com/spf13/viper"
 
 	"k8s.io/client-go/kubernetes"
