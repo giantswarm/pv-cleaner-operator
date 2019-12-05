@@ -3,13 +3,14 @@ package controller
 import (
 	"fmt"
 
+	"github.com/giantswarm/k8sclient"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/controller"
 	"github.com/giantswarm/operatorkit/informer"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 
+	"github.com/giantswarm/pv-cleaner-operator/pkg/project"
 	v1 "github.com/giantswarm/pv-cleaner-operator/service/controller/v1"
 )
 
@@ -18,10 +19,8 @@ const (
 )
 
 type PersistentVolumeConfig struct {
-	K8sClient kubernetes.Interface
+	K8sClient k8sclient.Interface
 	Logger    micrologger.Logger
-
-	ProjectName string
 }
 
 type PersistentVolume struct {
@@ -38,15 +37,11 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
 	}
 
-	if config.ProjectName == "" {
-		return nil, microerror.Maskf(invalidConfigError, "config.ProjectName must not be empty")
-	}
-
 	var newInformer *informer.Informer
 	{
 		c := informer.Config{
 			Logger:  config.Logger,
-			Watcher: config.K8sClient.CoreV1().PersistentVolumes(),
+			Watcher: config.K8sClient.K8sClient().CoreV1().PersistentVolumes(),
 
 			ListOptions: metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", cleanupLabel, "true"),
@@ -65,8 +60,6 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 		c := v1.ResourceSetConfig{
 			K8sClient: config.K8sClient,
 			Logger:    config.Logger,
-
-			ProjectName: config.ProjectName,
 		}
 
 		v1ResourceSet, err = v1.NewResourceSet(c)
@@ -83,9 +76,9 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 			ResourceSets: []*controller.ResourceSet{
 				v1ResourceSet,
 			},
-			RESTClient: config.K8sClient.CoreV1().RESTClient(),
+			RESTClient: config.K8sClient.K8sClient().CoreV1().RESTClient(),
 
-			Name: config.ProjectName,
+			Name: project.Name(),
 		}
 
 		operatorkitController, err = controller.New(c)
