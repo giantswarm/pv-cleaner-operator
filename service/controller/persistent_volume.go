@@ -76,7 +76,7 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 			ResourceSets: []*controller.ResourceSet{
 				v1ResourceSet,
 			},
-			RESTClient: config.K8sClient.K8sClient().CoreV1().RESTClient(),
+			RESTClient: config.K8sClient.RESTClient(),
 
 			Name: project.Name(),
 		}
