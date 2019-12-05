@@ -20,8 +20,6 @@ const (
 type ResourceSetConfig struct {
 	K8sClient k8sclient.Interface
 	Logger    micrologger.Logger
-
-	ProjectName string
 }
 
 func NewResourceSet(config ResourceSetConfig) (*controller.ResourceSet, error) {
@@ -32,10 +30,6 @@ func NewResourceSet(config ResourceSetConfig) (*controller.ResourceSet, error) {
 	}
 	if config.Logger == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
-	}
-
-	if config.ProjectName == "" {
-		return nil, microerror.Maskf(invalidConfigError, "config.ProjectName must not be empty")
 	}
 
 	var persistentVolumeResource resource.Interface
