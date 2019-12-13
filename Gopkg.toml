@@ -22,6 +22,10 @@
 
 
 [[constraint]]
+  name = "github.com/giantswarm/k8sclient"
+  branch = "k8s-1-16"
+
+[[constraint]]
   name = "github.com/giantswarm/microendpoint"
   branch = "master"
 
@@ -38,12 +42,12 @@
   branch = "master"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/giantswarm/operatorkit"
+  branch = "k8s-1-16"
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.15.4"
+  version = "kubernetes-1.16.3"
 
 
 
