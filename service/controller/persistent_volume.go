@@ -6,6 +6,7 @@ import (
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/controller"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	v1 "github.com/giantswarm/pv-cleaner-operator/service/controller/v1"
@@ -59,16 +60,16 @@ func NewPersistentVolume(config PersistentVolumeConfig) (*PersistentVolume, erro
 	{
 		c := controller.Config{
 			K8sClient: config.K8sClient,
-			Logger:    config.Logger,
-			MatchLabels: map[string]string{
-				cleanupLabel: "true",
-			},
-			ResourceSets: []*controller.ResourceSet{
-				v1ResourceSet,
-			},
 			NewRuntimeObjectFunc: func() runtime.Object {
 				return new(corev1.PersistentVolume)
 			},
+			Logger: config.Logger,
+			ResourceSets: []*controller.ResourceSet{
+				v1ResourceSet,
+			},
+			Selector: labels.SelectorFromSet(map[string]string{
+				cleanupLabel: "true",
+			}),
 
 			Name: config.ProjectName,
 		}
