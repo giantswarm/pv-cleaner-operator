@@ -114,8 +114,7 @@ func New(config Config) (*Service, error) {
 
 		versionService, err = version.New(c)
 		if err != nil {
-			return nil, microerror.Maskf(err, "version.New")
-		}
+			return nil, microerror.Mask(err)		}
 	}
 
 	newService := &Service{

@@ -11,8 +11,7 @@ func (r *Resource) GetCurrentState(ctx context.Context, obj interface{}) (interf
 
 	pv, err := toPV(obj)
 	if err != nil {
-		return nil, microerror.Maskf(err, "GetCurrentState")
-	}
+		return nil, microerror.Mask(err)	}
 
 	recycleState := getVolumeAnnotation(pv, recycleStateAnnotation)
 	rpv := &RecyclePersistentVolume{
@@ -29,8 +28,7 @@ func (r *Resource) GetDesiredState(ctx context.Context, obj interface{}) (interf
 
 	pv, err := toPV(obj)
 	if err != nil {
-		return nil, microerror.Maskf(err, "GetDesiredState")
-	}
+		return nil, microerror.Mask(err)	}
 
 	rpv := &RecyclePersistentVolume{
 		Name:         pv.Name,
