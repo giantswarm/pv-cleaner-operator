@@ -47,12 +47,12 @@ func NewResourceSet(config ResourceSetConfig) (*controller.ResourceSet, error) {
 
 		ops, err := persistentvolume.New(c)
 		if err != nil {
-			return nil, microerror.Maskf(err, "persistentvolume.New")
+			return nil, microerror.Mask(err)
 		}
 
 		persistentVolumeResource, err = toCRUDResource(config.Logger, ops)
 		if err != nil {
-			return nil, microerror.Maskf(err, "persistentvolume.New")
+			return nil, microerror.Mask(err)
 		}
 	}
 

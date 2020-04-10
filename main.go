@@ -44,7 +44,7 @@ func mainWithError() error {
 	{
 		newLogger, err = micrologger.New(micrologger.Config{})
 		if err != nil {
-			return microerror.Maskf(err, "micrologger.New")
+			return microerror.Mask(err)
 		}
 	}
 
@@ -68,7 +68,7 @@ func mainWithError() error {
 
 			newService, err = service.New(serviceConfig)
 			if err != nil {
-				panic(fmt.Sprintf("%#v\n", microerror.Maskf(err, "service.New")))
+				panic(fmt.Sprintf("%#v\n", microerror.Mask(err)))
 			}
 			go newService.Boot()
 		}
@@ -84,7 +84,7 @@ func mainWithError() error {
 
 			newServer, err = server.New(serverConfig)
 			if err != nil {
-				panic(fmt.Sprintf("%#v\n", microerror.Maskf(err, "server.New")))
+				panic(fmt.Sprintf("%#v\n", microerror.Mask(err)))
 			}
 		}
 
